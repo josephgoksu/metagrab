@@ -1,4 +1,4 @@
-<img src="./assets/logo.png" alt="metagrab" height="250" width="250" align="right" />
+<img src="./assets/logo.png" alt="metagrab" height="250" width="250" align="right" style="margin-left: 10px;" />
 
 # metagrab
 
