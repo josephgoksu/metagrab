@@ -1,0 +1,31 @@
+{
+  "name": "metagrab",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-06-24",
+  "compatibility_flags": ["containers"],
+  "containers": [
+    {
+      "class_name": "MetagrabContainer",
+      "image": {
+        "path": "./Dockerfile",
+        "context": "../.." // repo root — Dockerfile needs go.mod and full source tree
+      },
+      "max_instances": 3,
+      "instance_type": "dev" // 256MB RAM, 1/16 vCPU — plenty for HTML parsing
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "METAGRAB_CONTAINER",
+        "class_name": "MetagrabContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MetagrabContainer"]
+    }
+  ]
+}

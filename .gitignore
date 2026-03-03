@@ -1,2 +1,5 @@
-./grabber
-./metagrab
+grabber
+metagrab
+.DS_Store
+out.json
+timings.csv
