@@ -6,10 +6,10 @@
 
 In-scope:
 - Metadata fetching/parsing primitives (title, description, OG, Twitter Cards, favicon, canonical URL, author/date, JSON-LD, oEmbed)
-- Opt-in field bitmask for controlling extraction scope (all 8 bits of `uint8` allocated)
+- Opt-in field bitmask for controlling extraction scope (`uint16`, 8 bits used)
 - oEmbed provider registry with ~30 compiled-in providers
 - Public Go API (`Fetch`, `FetchBulk`, `FetchBulkResults`)
-- SSRF protection helpers (`DenyPrivateIPs`)
+- SSRF protection (`WithDenyPrivateNetworks`, `DenyPrivateIPs`, `IsPublicAddr`)
 - `httphandler/` — shared HTTP adapter (`http.Handler`)
 - Library tests and benchmarks
 - CLI tool in `cmd/` with field presets, retries, and bulk fetch
@@ -31,11 +31,11 @@ This separation protects:
 
 ## Field bitmask capacity
 
-The `Field` type is `uint8`. All 8 bits are allocated:
-- Bits 0-4: original fields (Title, URL, Meta, Description, Content)
-- Bits 5-7: v2.x additions (Favicon, Canonical, JSON-LD)
+The `Field` type is `uint16`. Bits 0-7 are allocated:
+- Bits 0-4: Title, URL, Meta, Description, Content
+- Bits 5-7: Favicon, Canonical, JSON-LD
 
-Future fields require bumping `Field` to `uint16` (v3 breaking change). This is acceptable because the 8 current fields cover the complete link preview use case.
+Bits 8-15 are free, so new fields can be added without a breaking change.
 
 ## Deployment reference architecture
 
@@ -48,15 +48,14 @@ Client → Edge proxy (CF Worker / API Gateway) → metagrab httphandler (standa
 Responsibilities split:
 - Edge proxy: TLS termination, caching, rate limiting, request shaping
 - `httphandler`: auth (`X-API-Key`), request validation, JSON wire format
-- `metagrab.Client`: SSRF policy (`DenyPrivateIPs`), retries/backoff, fetch/parse metadata
+- `metagrab.Client`: SSRF protection (`WithDenyPrivateNetworks`), retries/backoff, fetch/parse metadata
 
 See `examples/` for concrete deployment references.
 
 ## Security posture
 
-The library ships `DenyPrivateIPs()` for SSRF protection and `httphandler` provides `X-API-Key` auth and request body limits out of the box.
+The library ships `WithDenyPrivateNetworks()` (dial-time SSRF protection that also covers redirects and DNS rebinding) and `httphandler` provides `X-API-Key` auth and request body limits out of the box.
 
 Production deployments should additionally implement:
 - Abuse controls (rate limiting, quotas)
 - Structured logs and reason-coded failures
-- Custom `net.Dialer` for DNS-rebinding hardening (see `policy.go` godoc)

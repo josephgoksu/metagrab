@@ -7,7 +7,7 @@
 
 Fast, focused URL metadata extraction for Go. Extracts titles, descriptions, Open Graph, Twitter Cards, favicons, canonical URLs, author/date metadata, JSON-LD structured data, and oEmbed from any URL — with built-in retries, SSRF protection, and a deploy-ready HTTP adapter.
 
-Requires **Go 1.26+**.
+Requires **Go 1.26+**. Non-UTF-8 pages (for example Shift_JIS or windows-1251) are decoded to UTF-8.
 
 ## Install
 
@@ -82,6 +82,7 @@ link, err := metagrab.Fetch(ctx, url, mask)
 | `Content`      | `string`            | `ContentField`     | Full HTML body                                                                 |
 | `Favicon`      | `string`            | `FaviconField`     | Best favicon URL                                                               |
 | `CanonicalURL` | `string`            | `CanonicalField`   | Canonical URL                                                                  |
+| `Image`        | `string`            | `MetaField`        | Best preview image, absolute (`og:image` > `twitter:image` > oEmbed thumbnail) |
 | `SiteName`     | `string`            | `MetaField`        | From `og:site_name`                                                            |
 | `Author`       | `string`            | `MetaField`        | From `article:author` or `<meta name="author">`                                |
 | `PublishedAt`  | `string`            | `MetaField`        | From `article:published_time` or `<meta name="date">` (raw string, not parsed) |
@@ -113,7 +114,7 @@ client := metagrab.NewClient(
     metagrab.WithTimeout(5 * time.Second),
     metagrab.WithRetries(2),
     metagrab.WithConcurrency(20),
-    metagrab.WithURLPolicy(metagrab.DenyPrivateIPs()), // SSRF protection
+    metagrab.WithDenyPrivateNetworks(), // SSRF protection
 )
 link, err := client.Fetch(ctx, url, metagrab.PreviewFields)
 ```
@@ -123,10 +124,13 @@ link, err := client.Fetch(ctx, url, metagrab.PreviewFields)
 | `WithTimeout`     | 10s            | HTTP client timeout (ignored when `WithHTTPClient` is set)              |
 | `WithRetries`     | 0              | Retry on 429/502/503/504 with exponential backoff                       |
 | `WithRetryDelay`  | 250ms          | Base delay between retries                                              |
+| `WithMaxRetryWait` | 30s           | Upper bound for any retry wait, including `Retry-After`                 |
+| `WithMaxRedirects` | 5             | Redirects to follow (0 = do not follow)                                 |
+| `WithDenyPrivateNetworks` | off    | Block private/reserved addresses at dial time (see SSRF protection)     |
 | `WithConcurrency` | 10             | Max parallel fetches for bulk operations                                |
 | `WithMaxBodySize` | 2 MB           | Response body size limit                                                |
-| `WithURLPolicy`   | nil            | Pre-fetch URL validation hook (see SSRF protection below)               |
-| `WithUserAgent`   | `metagrab/2.0` | User-Agent header                                                       |
+| `WithURLPolicy`   | nil            | URL allow/deny hook, run before the request and on every redirect       |
+| `WithUserAgent`   | `metagrab/1`   | User-Agent header                                                       |
 | `WithHTTPClient`  | —              | Bring your own `*http.Client` (timeout and transport managed by caller) |
 
 Package-level functions (`metagrab.Fetch`, `metagrab.FetchBulkResults`) use a default client with the defaults above.
@@ -170,15 +174,19 @@ if err != nil {
 
 ## SSRF protection
 
-Use `DenyPrivateIPs()` to block requests to private/reserved IP ranges:
+If URLs come from users, turn on `WithDenyPrivateNetworks()`:
 
 ```go
 client := metagrab.NewClient(
-    metagrab.WithURLPolicy(metagrab.DenyPrivateIPs()),
+    metagrab.WithDenyPrivateNetworks(),
 )
 ```
 
-This rejects loopback, private (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), link-local, and unspecified addresses. For hardened deployments, combine with a custom `http.Transport` `DialContext` that validates resolved IPs to defend against DNS rebinding.
+The check runs in the dialer, after DNS resolution, on every connection. That covers redirects and DNS rebinding. It blocks loopback, RFC 1918, link-local (including cloud metadata at `169.254.169.254`), CGNAT, multicast, documentation, NAT64, IPv6 ULA and IPv4-mapped IPv6 forms of all of these. Blocked requests fail with `url_denied`, and the error wraps `metagrab.ErrPrivateAddress`. Proxy environment variables are ignored in this mode, because a proxy would hide the real target address.
+
+`DenyPrivateIPs()` is still available as a `URLPolicy`. It resolves the host once before the request, so on its own it does not stop DNS rebinding. `IsPublicAddr(netip.Addr)` is exported for your own transports.
+
+If you pass your own client with `WithHTTPClient`, these protections are yours to configure.
 
 ## oEmbed support
 
@@ -214,7 +222,7 @@ The `httphandler` sub-package wraps a `metagrab.Client` as a standard `http.Hand
 import "github.com/josephgoksu/metagrab/httphandler"
 
 client := metagrab.NewClient(
-    metagrab.WithURLPolicy(metagrab.DenyPrivateIPs()),
+    metagrab.WithDenyPrivateNetworks(),
 )
 h := httphandler.New(client,
     httphandler.WithAPIKey(os.Getenv("API_KEY")),
@@ -232,6 +240,8 @@ http.ListenAndServe(":8080", h)
 
 Returns the `Link` object directly. `fields` defaults to `15` (MetadataFields) when omitted.
 
+Errors return a `FetchError` JSON body. Status codes: `400` for invalid or denied URLs, `422` for non-HTML targets, `504` for timeouts, and `502` for every other upstream failure. A non-2xx response from the target is also `502`, with the target's status in `status_code`.
+
 **`POST /fetch-bulk`** — batch (up to 100 URLs)
 
 ```json
@@ -242,7 +252,7 @@ Returns `[Link, ...]`. Failed URLs return a Link with only the `url` field popul
 
 **`GET /health`** — health check
 
-Returns `{"status": "ok"}`.
+Returns `{"status": "ok"}`. This endpoint does not require the API key, so load balancers can call it.
 
 ### Handler options
 

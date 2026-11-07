@@ -56,15 +56,49 @@ func WithRetryDelay(d time.Duration) Option {
 	}
 }
 
+// WithMaxRetryWait caps how long the client waits before a retry, including
+// waits requested by a Retry-After header. Default is 30s.
+func WithMaxRetryWait(d time.Duration) Option {
+	return func(c *Client) {
+		c.maxRetryWait = d
+	}
+}
+
+// WithMaxRedirects sets how many redirects the default transport follows.
+// Default is 5. Use 0 to not follow redirects (a 3xx is then returned as
+// an http_status_error). Ignored when WithHTTPClient is also set.
+func WithMaxRedirects(n int) Option {
+	return func(c *Client) {
+		if n >= 0 {
+			c.maxRedirects = n
+		}
+	}
+}
+
 // WithURLPolicy sets a URLPolicy hook for allow/deny decisions before fetch.
+// When the client builds its own transport (no WithHTTPClient), the policy
+// also runs on every redirect target.
 func WithURLPolicy(policy URLPolicy) Option {
 	return func(c *Client) {
 		c.urlPolicy = policy
 	}
 }
 
+// WithDenyPrivateNetworks blocks connections to private, loopback,
+// link-local and other reserved addresses (see IsPublicAddr). The check runs
+// in the dialer after DNS resolution, so it covers redirects and DNS
+// rebinding. Use it whenever URLs come from untrusted input.
+//
+// Ignored when WithHTTPClient is also set: in that case, configure your own
+// transport (for example with a net.Dialer Control function).
+func WithDenyPrivateNetworks() Option {
+	return func(c *Client) {
+		c.denyPrivate = true
+	}
+}
+
 // WithHTTPClient sets a custom *http.Client.
-// When set, timeout and transport are fully managed by the caller.
+// When set, timeout, transport and redirect policy are fully managed by the caller.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		c.httpClient = hc

@@ -24,20 +24,20 @@ func parseFields(s string) (metagrab.Field, error) {
 	if f, ok := fieldPresets[strings.ToLower(s)]; ok {
 		return f, nil
 	}
-	n, err := strconv.ParseUint(s, 10, 8)
+	n, err := strconv.ParseUint(s, 10, 16)
 	if err != nil {
 		names := make([]string, 0, len(fieldPresets))
 		for k := range fieldPresets {
 			names = append(names, k)
 		}
-		return 0, fmt.Errorf("unknown fields %q (use: %s, or a number 0-255)", s, strings.Join(names, ", "))
+		return 0, fmt.Errorf("unknown fields %q (use: %s, or a numeric bitmask)", s, strings.Join(names, ", "))
 	}
 	return metagrab.Field(n), nil
 }
 
 func main() {
 	timeout := flag.Duration("timeout", 10*time.Second, "HTTP timeout per request")
-	fields := flag.String("fields", "preview", "field preset (metadata, preview, rich, all) or numeric bitmask 0-255")
+	fields := flag.String("fields", "preview", "field preset (metadata, preview, rich, all) or numeric bitmask (e.g. 111)")
 	retries := flag.Int("retries", 0, "retry attempts for retryable statuses (429/502/503/504)")
 	retryDelay := flag.Duration("retry-delay", 250*time.Millisecond, "base delay between retries")
 	flag.Parse()

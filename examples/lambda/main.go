@@ -28,7 +28,7 @@ import (
 
 func main() {
 	client := metagrab.NewClient(
-		metagrab.WithURLPolicy(metagrab.DenyPrivateIPs()),
+		metagrab.WithDenyPrivateNetworks(),
 	)
 
 	h := httphandler.New(client,
