@@ -7,6 +7,7 @@
 <meta name="description" content="Turn a URL into a link preview: title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed. Go library, CLI and HTTP API.">
 <link rel="canonical" href="https://metagrab.josephgoksu.com/">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f766e">
 <meta property="og:type" content="website">
 <meta property="og:title" content="metagrab: link previews for Go">
 <meta property="og:description" content="Turn a URL into a link preview. Go library, CLI and HTTP API.">
@@ -14,108 +15,349 @@
 <meta property="og:image" content="https://metagrab.josephgoksu.com/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
-:root { --bg: #fff; --fg: #111; --mute: #666; --line: #e5e5e5; --code: #f6f6f6; --link: #0b62c4; color-scheme: light dark; }
-@media (prefers-color-scheme: dark) { :root { --bg: #0d0d0d; --fg: #e8e8e8; --mute: #999; --line: #262626; --code: #171717; --link: #6aa9ff; } }
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --fg: #0f172a; --mute: #5b6475; --line: #e4e7ec; --soft: #f6f8fa;
+  --code: #f6f8fa; --brand: #0f766e; --brand-2: #14b8a6; --tint: #e6f6f3; --bar: #cbd2db;
+  --k: #a626a4; --s: #0f766e; --f: #2563eb; --n: #b45309; --c: #8a94a6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f14; --fg: #e6e9ee; --mute: #98a2b3; --line: #1f2630; --soft: #11161d;
+    --code: #0f141a; --brand: #2dd4bf; --brand-2: #14b8a6; --tint: #0d2724; --bar: #3a4452;
+    --k: #e28ef0; --s: #5eead4; --f: #7cb2ff; --n: #f5b872; --c: #6b7686;
+  }
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-main { max-width: 680px; margin: 0 auto; padding: 56px 16px 64px; }
-h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
-h2 { font-size: 15px; margin: 40px 0 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mute); font-weight: 600; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--tint); }
+main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
 p { margin: 0 0 12px; }
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
 .mute { color: var(--mute); }
-.links { margin: 12px 0 0; font-size: 15px; }
-.links a + a::before { content: "·"; color: var(--mute); margin: 0 8px; }
-code, pre { font: 13.5px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-pre { background: var(--code); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 0 0 12px; }
-p code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-.c { color: var(--mute); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 0 0 8px; }
-th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+code, pre, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+/* header */
+.top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.top img { width: 40px; height: 40px; border-radius: 10px; }
+.top b { font-size: 20px; letter-spacing: -0.01em; }
+.pill { font: 12px/1 ui-monospace, Menlo, monospace; color: var(--brand); background: var(--tint); padding: 5px 8px; border-radius: 999px; }
+.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; }
+.top nav a { color: var(--mute); }
+.top nav a:hover { color: var(--fg); }
+h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; letter-spacing: -0.025em; margin: 28px 0 12px; }
+h1 em { font-style: normal; color: var(--brand); }
+.lede { font-size: 18px; color: var(--mute); max-width: 600px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 0; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 8px; font-size: 15px; font-weight: 500; border: 1px solid var(--line); color: var(--fg); }
+.btn:hover { text-decoration: none; border-color: var(--mute); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--bg); }
+.btn.primary:hover { filter: brightness(1.08); }
+
+/* illustration: url -> preview */
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.15fr); align-items: center; gap: 14px; margin: 36px 0 8px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0 / 16px 16px, var(--soft); }
+.url { font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+.url span { color: var(--mute); }
+.arrow { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--brand); font-size: 12px; }
+.arrow code { background: var(--tint); padding: 3px 7px; border-radius: 6px; font-size: 12px; }
+.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px -10px rgba(15,23,42,.25); }
+.card svg { display: block; width: 100%; height: auto; }
+.card div { padding: 10px 12px 12px; }
+.card small { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 12px; }
+.card small i { width: 12px; height: 12px; border-radius: 3px; background: var(--brand-2); display: inline-block; }
+.card strong { display: block; font-size: 14px; line-height: 1.35; margin: 4px 0 2px; }
+.card p { font-size: 12.5px; color: var(--mute); margin: 0; line-height: 1.45; }
+.cap { font-size: 13px; color: var(--mute); text-align: center; margin: 0 0 8px; }
+
+/* sections */
+section { margin-top: 56px; }
+h2 { font-size: 22px; letter-spacing: -0.015em; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+h2 .n { font: 600 12px/1 ui-monospace, Menlo, monospace; color: var(--brand); background: var(--tint); border-radius: 6px; padding: 5px 7px; }
+h2 + p { color: var(--mute); }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+
+/* code */
+.code { position: relative; margin: 0 0 14px; }
+pre { margin: 0; background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.65; }
+.code .label { position: absolute; top: 0; left: 14px; transform: translateY(-50%); background: var(--bg); color: var(--mute); font: 11px/1 ui-monospace, Menlo, monospace; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+.code.labelled pre { padding-top: 20px; }
+.copy { position: absolute; top: 8px; right: 8px; font: 12px/1 -apple-system, system-ui, sans-serif; color: var(--mute); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.code:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
+@media (hover: none) { .copy { opacity: 1; } }
+.copy.done { color: var(--brand); border-color: var(--brand); }
+p code, li code, td code { background: var(--code); border: 1px solid var(--line); padding: 0 5px; border-radius: 5px; font-size: 13px; }
+.k { color: var(--k); } .s { color: var(--s); } .f { color: var(--f); } .num { color: var(--n); } .c { color: var(--c); }
+
+/* masks */
+.masks { display: grid; gap: 10px; margin-top: 14px; }
+.mask { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 4px 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+.mask code { font-size: 13.5px; font-weight: 600; }
+.mask p { margin: 0; font-size: 14px; color: var(--mute); }
+.page { grid-column: 2; display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--line); margin-top: 4px; }
+.page b { background: var(--brand-2); }
+.page b + b { background: var(--brand); opacity: .35; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--mute); margin: 10px 0 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* practices */
+.rules { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rules li { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 14px; color: var(--mute); }
+.rules li strong { display: flex; align-items: center; gap: 8px; color: var(--fg); font-size: 15px; margin-bottom: 4px; }
+.rules li strong svg { flex: none; color: var(--brand); }
+.rules li code { font-size: 12.5px; }
+
+/* benchmark */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; margin: 10px 0 16px; }
+.seg button { font: 13px/1 -apple-system, system-ui, sans-serif; color: var(--mute); background: none; border: 0; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--tint); color: var(--brand); font-weight: 600; }
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; gap: 12px; font-size: 14px; }
+.bar > span:first-child { color: var(--mute); }
+.bar.me > span:first-child { color: var(--fg); font-weight: 600; }
+.track { display: flex; align-items: center; gap: 8px; }
+.fill { height: 18px; border-radius: 0 4px 4px 0; background: var(--bar); transition: width .35s ease; min-width: 2px; }
+.bar.me .fill { background: var(--brand-2); }
+.track em { font-style: normal; font-size: 13px; color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar.me .track em { color: var(--fg); font-weight: 600; }
+.callout { margin: 16px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--tint); font-size: 14px; }
+.callout b { color: var(--brand); }
+details { margin-top: 14px; font-size: 14px; }
+summary { cursor: pointer; color: var(--mute); }
+.wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
 th { color: var(--mute); font-weight: 500; }
-td.me { font-weight: 600; }
-.wrap { overflow-x: auto; }
-ul { padding-left: 20px; margin: 0 0 12px; }
-li { margin: 4px 0; }
-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--mute); }
+td.me { color: var(--brand); font-weight: 600; }
+
+/* contribute */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.chips li { font-size: 13.5px; border: 1px dashed var(--line); border-radius: 999px; padding: 6px 12px; color: var(--mute); }
+
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--mute); display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; }
+
+@media (max-width: 640px) {
+  .top nav { display: none; }
+  .flow { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .arrow { flex-direction: row; }
+  .arrow svg { transform: rotate(90deg); }
+  .mask { grid-template-columns: minmax(0, 1fr); }
+  .page { grid-column: 1; }
+  .rules { grid-template-columns: minmax(0, 1fr); }
+  .bar { grid-template-columns: 96px minmax(0, 1fr); font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .fill { transition: none; } }
 </style>
 </head>
 <body>
 <main>
 
-<h1>metagrab</h1>
-<p class="mute">Link previews for Go. One call turns a URL into title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed.</p>
-<p class="links"><a href="https://github.com/josephgoksu/metagrab">GitHub</a><a href="https://pkg.go.dev/github.com/josephgoksu/metagrab">pkg.go.dev</a><a href="https://github.com/josephgoksu/metagrab/blob/master/docs/reference.md">Reference</a><a href="https://github.com/josephgoksu/metagrab/releases">v0.1.0</a></p>
+<header class="top">
+  <img src="logo.svg" alt="" width="40" height="40">
+  <b>metagrab</b>
+  <span class="pill">v0.1.0</span>
+  <nav aria-label="Sections">
+    <a href="#start">Start</a>
+    <a href="#practices">Best practices</a>
+    <a href="#speed">Benchmarks</a>
+    <a href="https://github.com/josephgoksu/metagrab">GitHub</a>
+  </nav>
+</header>
 
-<h2>Install</h2>
-<pre>go get github.com/josephgoksu/metagrab@latest</pre>
-
-<h2>Use</h2>
-<pre>link, err := metagrab.Fetch(ctx, url, metagrab.PreviewFields)
-if err != nil {
-    return err <span class="c">// *metagrab.FetchError with a Code</span>
-}
-fmt.Println(link.Title, link.Image, link.Favicon)</pre>
-
-<p>Returns a <code>*metagrab.Link</code>. As JSON:</p>
-<pre>{
-  "url": "https://blog.example.com/posts/fast-previews",
-  "title": "Making link previews fast | Example Blog",
-  "description": "How to unfurl a link in under a millisecond.",
-  "open_graph": {
-    "og:image": "/img/cover.png",
-    "og:site_name": "Example Blog",
-    "og:title": "Making link previews fast"
-  },
-  "twitter": { "twitter:card": "summary_large_image" },
-  "favicon": "https://blog.example.com/apple-touch-icon.png",
-  "canonical_url": "https://blog.example.com/posts/fast-previews",
-  "image": "https://blog.example.com/img/cover.png",
-  "site_name": "Example Blog",
-  "author": "Ada Lovelace"
-}</pre>
-<p class="mute">URLs come back absolute. Already have the HTML? Use <code>metagrab.Parse(r, url, mask)</code>.</p>
-
-<h2>Field masks</h2>
-<p><code>MetadataFields</code> title, description, image, OG, Twitter. Stops at <code>&lt;/head&gt;</code>.<br>
-<code>PreviewFields</code> adds favicon and canonical URL.<br>
-<code>RichFields</code> adds JSON-LD from anywhere in the page.</p>
-
-<h2>User-supplied URLs</h2>
-<pre>client := metagrab.NewClient(
-    metagrab.WithDenyPrivateNetworks(), <span class="c">// no private IPs, even via redirects</span>
-    metagrab.WithTimeout(5 * time.Second),
-    metagrab.WithRetries(2),
-)</pre>
-
-<h2>CLI and HTTP API</h2>
-<pre>brew install --cask josephgoksu/tap/metagrab
-metagrab https://go.dev
-
-docker run -p 8080:8080 ghcr.io/josephgoksu/metagrab
-curl localhost:8080/fetch -d '{"url":"https://go.dev"}'</pre>
-
-<h2>Benchmarks</h2>
-<p class="mute">Time to fetch one preview from a local server, median. Lower is better.</p>
-<div class="wrap">
-<table>
-<tr><th>Page</th><th>metagrab</th><th>goscraper</th><th>go-opengraph</th><th>otiai10/opengraph</th></tr>
-<tr><td>38 KB</td><td class="me">0.28 ms</td><td>0.49 ms</td><td>0.51 ms</td><td>0.81 ms</td></tr>
-<tr><td>154 KB</td><td class="me">0.63 ms</td><td>1.11 ms</td><td>1.16 ms</td><td>2.06 ms</td></tr>
-<tr><td>699 KB</td><td class="me">1.12 ms</td><td>3.28 ms</td><td>3.67 ms</td><td>7.02 ms</td></tr>
-<tr><td>1.8 MB</td><td class="me">1.84 ms</td><td>7.09 ms</td><td>8.35 ms</td><td>16.88 ms</td></tr>
-</table>
+<h1>Turn any URL into a <em>link preview</em>.</h1>
+<p class="lede">A Go library, CLI and HTTP API. One call returns the title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed, with absolute URLs.</p>
+<div class="cta">
+  <a class="btn primary" href="#start">Get started</a>
+  <a class="btn" href="https://pkg.go.dev/github.com/josephgoksu/metagrab">pkg.go.dev</a>
+  <a class="btn" href="https://github.com/josephgoksu/metagrab/blob/master/docs/reference.md">Reference</a>
 </div>
-<p class="mute">It reads only the head when it can: 445 KB of the 1.8 MB page. <a href="https://github.com/josephgoksu/metagrab/tree/master/docs/benchmarks">Method and charts</a>. Reproduce: <code>cd bench &amp;&amp; go run .</code></p>
 
-<h2>Contribute</h2>
-<pre>git clone https://github.com/josephgoksu/metagrab
-cd metagrab &amp;&amp; go test -short -race ./...</pre>
-<p>Good first changes: an oEmbed provider in <code>oembed.go</code>, a page that previews badly (<a href="https://github.com/josephgoksu/metagrab/issues/new/choose">open an issue</a>), a deployment example in <code>examples/</code>. See <a href="https://github.com/josephgoksu/metagrab/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+<figure class="flow" aria-label="A URL goes into metagrab.Fetch and comes out as a preview card">
+  <div class="url mono"><span>https://</span>blog.example.com/posts/fast-previews</div>
+  <div class="arrow" aria-hidden="true">
+    <code>Fetch</code>
+    <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M1 7h32m0 0-6-6m6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 320 140" role="img" aria-label="Cover image">
+      <defs><linearGradient id="cv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#0e7490"/></linearGradient></defs>
+      <rect width="320" height="140" fill="url(#cv)"/>
+      <circle cx="262" cy="34" r="14" fill="#ccfbf1" opacity=".9"/>
+      <path d="M0 140 L88 62 L150 112 L196 78 L320 140 Z" fill="#0f766e"/>
+      <path d="M120 140 L196 78 L260 120 L290 100 L320 120 L320 140 Z" fill="#134e4a" opacity=".7"/>
+      <g fill="#ffffff" opacity=".95"><rect x="22" y="22" width="120" height="10" rx="5"/><rect x="22" y="40" width="78" height="8" rx="4" opacity=".7"/></g>
+    </svg>
+    <div>
+      <small><i></i>Example Blog</small>
+      <strong>Making link previews fast</strong>
+      <p>How to unfurl a link in under a millisecond.</p>
+    </div>
+  </div>
+</figure>
+<p class="cap">What your app can render from one <code>metagrab.Fetch</code> call.</p>
 
-<footer>Apache-2.0 · by <a href="https://josephgoksu.com">Joseph Goksu</a></footer>
+<section id="start">
+<h2><span class="n">01</span>Install and fetch</h2>
+<p>Go 1.26 or newer. No CGO, no headless browser.</p>
+<div class="code"><pre>go get github.com/josephgoksu/metagrab@latest</pre></div>
+<div class="code"><pre><span class="c">// Turn a URL into a preview.</span>
+link, err := metagrab.<span class="f">Fetch</span>(ctx, url, metagrab.PreviewFields)
+<span class="k">if</span> err != <span class="k">nil</span> {
+    <span class="k">return</span> err <span class="c">// *metagrab.FetchError with a Code</span>
+}
+fmt.<span class="f">Println</span>(link.Title, link.Image, link.Favicon)</pre></div>
+<p>You get a <code>*metagrab.Link</code>. As JSON:</p>
+<div class="code labelled"><span class="label">link.json</span><pre>{
+  <span class="f">"url"</span>: <span class="s">"https://blog.example.com/posts/fast-previews"</span>,
+  <span class="f">"title"</span>: <span class="s">"Making link previews fast | Example Blog"</span>,
+  <span class="f">"description"</span>: <span class="s">"How to unfurl a link in under a millisecond."</span>,
+  <span class="f">"open_graph"</span>: {
+    <span class="f">"og:image"</span>: <span class="s">"/img/cover.png"</span>,
+    <span class="f">"og:site_name"</span>: <span class="s">"Example Blog"</span>,
+    <span class="f">"og:title"</span>: <span class="s">"Making link previews fast"</span>
+  },
+  <span class="f">"twitter"</span>: { <span class="f">"twitter:card"</span>: <span class="s">"summary_large_image"</span> },
+  <span class="f">"favicon"</span>: <span class="s">"https://blog.example.com/apple-touch-icon.png"</span>,
+  <span class="f">"canonical_url"</span>: <span class="s">"https://blog.example.com/posts/fast-previews"</span>,
+  <span class="f">"image"</span>: <span class="s">"https://blog.example.com/img/cover.png"</span>,
+  <span class="f">"site_name"</span>: <span class="s">"Example Blog"</span>,
+  <span class="f">"author"</span>: <span class="s">"Ada Lovelace"</span>
+}</pre></div>
+<p class="mute">Note that <code>og:image</code> was relative and <code>image</code> is absolute. Already have the HTML? Use <code>metagrab.Parse(r, url, mask)</code>.</p>
+</section>
+
+<section id="masks">
+<h2><span class="n">02</span>Ask only for what you need</h2>
+<p>A field mask decides what metagrab extracts and how much of the page it reads.</p>
+<div class="masks">
+  <div class="mask"><code>MetadataFields</code><p>Title, description, image, Open Graph, Twitter.</p><div class="page" aria-label="Reads the head only"><b style="width:22%"></b></div></div>
+  <div class="mask"><code>PreviewFields</code><p>Adds favicon and canonical URL.</p><div class="page" aria-label="Reads the head only"><b style="width:22%"></b></div></div>
+  <div class="mask"><code>RichFields</code><p>Adds JSON-LD, found anywhere in the page.</p><div class="page" aria-label="Reads the whole page"><b style="width:22%"></b><b style="width:78%"></b></div></div>
+</div>
+<p class="legend"><span><i style="background:var(--brand-2)"></i>&lt;head&gt;, read</span><span><i style="background:var(--brand);opacity:.35"></i>&lt;body&gt;, read</span><span><i style="background:var(--line)"></i>skipped</span></p>
+</section>
+
+<section id="practices">
+<h2><span class="n">03</span>Best practices</h2>
+<p>What to do when previews run in production.</p>
+<ul class="rules">
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5 2.5 3.8v3.7c0 3.4 2.3 6 5.5 7 3.2-1 5.5-3.6 5.5-7V3.8L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Block private networks</strong>If users submit URLs, use <code>WithDenyPrivateNetworks()</code>. It checks every dial, redirects too, so a link can't reach <code>169.254.169.254</code> or your LAN.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Put a deadline on every call</strong>Pass a <code>context</code> with a timeout and keep <code>WithTimeout</code> short. Slow sites should fail fast, not hold a request.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 0 1 9.4-3.9M13.5 8a5.5 5.5 0 0 1-9.4 3.9M12 1.5v3h-3M4 14.5v-3h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Reuse one client</strong>Create the <code>Client</code> once at startup and share it. Use <code>WithRetries(2)</code> for 429 and 5xx responses.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M4.5 8h7M6.5 12h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Use the smallest mask</strong><code>PreviewFields</code> covers most previews and stops at <code>&lt;/head&gt;</code>. Use <code>RichFields</code> only if you need JSON-LD.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><ellipse cx="8" cy="4" rx="5.5" ry="2.25" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 4v8c0 1.2 2.5 2.25 5.5 2.25s5.5-1 5.5-2.25V4M2.5 8c0 1.2 2.5 2.25 5.5 2.25S13.5 9.2 13.5 8" stroke="currentColor" stroke-width="1.5"/></svg>Cache the results</strong>metagrab does not cache. Store each <code>Link</code> by its canonical URL for hours or days. Pages rarely change their preview.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.75 1.5 13.5h13L8 1.75Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.5v3M8 11.5v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Branch on error codes</strong>Every error is a <code>*FetchError</code>. Switch on <code>Code</code>, for example <code>http_status_error</code> or <code>unsupported_content_type</code>, not on the message.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.75" y="2.5" width="12.5" height="3" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1.75" y="7" width="12.5" height="3" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M1.75 13.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Fetch lists in bulk</strong><code>FetchBulkResults</code> runs in parallel (<code>WithConcurrency</code>) and gives one result per URL. One bad link does not fail the batch.</li>
+  <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5" r="2.75" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 14c.6-2.6 2.8-4.25 5.5-4.25s4.9 1.65 5.5 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Say who you are</strong>Set <code>WithUserAgent</code> to your product name and a contact URL. Site owners can then reach you instead of blocking you.</li>
+</ul>
+<h3>A production client</h3>
+<div class="code"><pre>client := metagrab.<span class="f">NewClient</span>(
+    metagrab.<span class="f">WithDenyPrivateNetworks</span>(),
+    metagrab.<span class="f">WithTimeout</span>(<span class="num">5</span> * time.Second),
+    metagrab.<span class="f">WithRetries</span>(<span class="num">2</span>),
+    metagrab.<span class="f">WithUserAgent</span>(<span class="s">"acme-previews/1 (+https://acme.dev/bot)"</span>),
+)
+
+ctx, cancel := context.<span class="f">WithTimeout</span>(ctx, <span class="num">8</span>*time.Second)
+<span class="k">defer</span> <span class="f">cancel</span>()
+link, err := client.<span class="f">Fetch</span>(ctx, url, metagrab.PreviewFields)</pre></div>
+</section>
+
+<section id="cli">
+<h2><span class="n">04</span>CLI and HTTP API</h2>
+<p>Same engine, no Go code needed.</p>
+<div class="code labelled"><span class="label">cli</span><pre>brew install --cask josephgoksu/tap/metagrab
+metagrab https://go.dev</pre></div>
+<div class="code labelled"><span class="label">http</span><pre>docker run -p 8080:8080 ghcr.io/josephgoksu/metagrab
+curl localhost:8080/fetch -d <span class="s">'{"url":"https://go.dev"}'</span></pre></div>
+</section>
+
+<section id="speed">
+<h2><span class="n">05</span>Benchmarks</h2>
+<p>Time to fetch one preview from a local server, median of 5 runs. Shorter is faster.</p>
+<div class="seg" role="group" aria-label="Page size">
+  <button type="button" data-i="0" aria-pressed="false">38 KB</button>
+  <button type="button" data-i="1" aria-pressed="false">154 KB</button>
+  <button type="button" data-i="2" aria-pressed="false">699 KB</button>
+  <button type="button" data-i="3" aria-pressed="true">1.8 MB</button>
+</div>
+<div class="bars" id="bars">
+  <div class="bar me"><span>metagrab</span><span class="track"><span class="fill" style="width:10.9%"></span><em>1.84 ms</em></span></div>
+  <div class="bar"><span>goscraper</span><span class="track"><span class="fill" style="width:42%"></span><em>7.09 ms</em></span></div>
+  <div class="bar"><span>go-opengraph</span><span class="track"><span class="fill" style="width:49.5%"></span><em>8.35 ms</em></span></div>
+  <div class="bar"><span>otiai10/opengraph</span><span class="track"><span class="fill" style="width:100%"></span><em>16.88 ms</em></span></div>
+</div>
+<p class="callout" id="callout"><b>3.9× faster</b> than the next library on a big product page. It stops after the head: 445 KB read of 1.8 MB.</p>
+<details>
+  <summary>All numbers</summary>
+  <div class="wrap"><table>
+    <tr><th>Page</th><th>metagrab</th><th>goscraper</th><th>go-opengraph</th><th>otiai10/opengraph</th></tr>
+    <tr><td>38 KB</td><td class="me">0.28 ms</td><td>0.49 ms</td><td>0.51 ms</td><td>0.81 ms</td></tr>
+    <tr><td>154 KB</td><td class="me">0.63 ms</td><td>1.11 ms</td><td>1.16 ms</td><td>2.06 ms</td></tr>
+    <tr><td>699 KB</td><td class="me">1.12 ms</td><td>3.28 ms</td><td>3.67 ms</td><td>7.02 ms</td></tr>
+    <tr><td>1.8 MB</td><td class="me">1.84 ms</td><td>7.09 ms</td><td>8.35 ms</td><td>16.88 ms</td></tr>
+  </table></div>
+</details>
+<p class="mute" style="margin-top:14px;font-size:14px"><a href="https://github.com/josephgoksu/metagrab/tree/master/docs/benchmarks">Method and charts</a>. Reproduce with <code>cd bench &amp;&amp; go run .</code></p>
+</section>
+
+<section id="contribute">
+<h2><span class="n">06</span>Contribute</h2>
+<p>Small, focused pull requests are welcome.</p>
+<div class="code"><pre>git clone https://github.com/josephgoksu/metagrab
+cd metagrab &amp;&amp; go test -short -race ./...</pre></div>
+<ul class="chips">
+  <li>Add an oEmbed provider in <code>oembed.go</code></li>
+  <li><a href="https://github.com/josephgoksu/metagrab/issues/new/choose">Report a page that previews badly</a></li>
+  <li>Add a deployment example to <code>examples/</code></li>
+</ul>
+<p style="margin-top:14px">Read <a href="https://github.com/josephgoksu/metagrab/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a> first.</p>
+</section>
+
+<footer>
+  <span>Apache-2.0 · by <a href="https://josephgoksu.com">Joseph Goksu</a></span>
+  <span><a href="https://github.com/josephgoksu/metagrab">GitHub</a> · <a href="https://github.com/josephgoksu/metagrab/releases">Releases</a> · <a href="https://github.com/josephgoksu/metagrab/blob/master/CHANGELOG.md">Changelog</a></span>
+</footer>
 </main>
+
+<script>
+// Copy buttons on code blocks.
+document.querySelectorAll('.code').forEach(function (box) {
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'copy'; b.textContent = 'Copy';
+  b.addEventListener('click', function () {
+    var text = box.querySelector('pre').innerText;
+    navigator.clipboard.writeText(text).then(function () {
+      b.textContent = 'Copied'; b.classList.add('done');
+      setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('done'); }, 1500);
+    });
+  });
+  box.appendChild(b);
+});
+
+// Benchmark page-size switch.
+var data = [
+  { v: [0.28, 0.49, 0.51, 0.81], note: 'on a small blog post, where it reads the whole 38 KB.' },
+  { v: [0.63, 1.11, 1.16, 2.06], note: 'on a typical page. It stops after the head: 119 KB read of 154 KB.' },
+  { v: [1.12, 3.28, 3.67, 7.02], note: 'on a news article. It stops after the head: 257 KB read of 699 KB.' },
+  { v: [1.84, 7.09, 8.35, 16.88], note: 'on a big product page. It stops after the head: 445 KB read of 1.8 MB.' }
+];
+var buttons = document.querySelectorAll('.seg button');
+var rows = document.querySelectorAll('#bars .bar');
+buttons.forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var d = data[+btn.dataset.i], max = Math.max.apply(null, d.v);
+    buttons.forEach(function (x) { x.setAttribute('aria-pressed', x === btn); });
+    rows.forEach(function (r, i) {
+      r.querySelector('.fill').style.width = (d.v[i] / max * 100).toFixed(1) + '%';
+      r.querySelector('em').textContent = d.v[i].toFixed(2) + ' ms';
+    });
+    document.getElementById('callout').innerHTML = '<b>' + (d.v[1] / d.v[0]).toFixed(1) + '× faster</b> than the next library ' + d.note;
+  });
+});
+</script>
 </body>
 </html>
