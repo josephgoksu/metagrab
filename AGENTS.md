@@ -23,6 +23,7 @@ Cards, favicon, canonical URL, JSON-LD and oEmbed.
 | `bench/` | Separate module: comparison benchmarks and chart generator |
 | `docs/benchmarks/` | Generated results and SVG charts (do not edit by hand) |
 | `examples/` | Lambda, Cloudflare Container and standalone server examples |
+| `site/` | Website at metagrab.josephgoksu.com: one static page, deployed to GitHub Pages on merge. Its benchmark numbers are copied from `docs/benchmarks/results.json`; update them when you regenerate. |
 
 ## Commands
 
