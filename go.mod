@@ -1,8 +1,8 @@
 module github.com/josephgoksu/metagrab
 
-go 1.25.0
+go 1.26.0
 
 require (
-	golang.org/x/net v0.51.0
-	golang.org/x/sync v0.13.0
+	golang.org/x/net v0.62.0
+	golang.org/x/sync v0.24.0
 )

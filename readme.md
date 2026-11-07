@@ -7,7 +7,7 @@
 
 Fast, focused URL metadata extraction for Go. Extracts titles, descriptions, Open Graph, Twitter Cards, favicons, canonical URLs, author/date metadata, JSON-LD structured data, and oEmbed from any URL — with built-in retries, SSRF protection, and a deploy-ready HTTP adapter.
 
-Requires **Go 1.25+**.
+Requires **Go 1.26+**.
 
 ## Install
 

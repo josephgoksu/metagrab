@@ -4,7 +4,7 @@ Deploy metagrab as an AWS Lambda function using the `provided.al2023` runtime.
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - AWS CLI configured
 - IAM role with Lambda execution permissions
 
