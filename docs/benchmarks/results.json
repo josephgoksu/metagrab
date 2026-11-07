@@ -1,0 +1,638 @@
+{
+  "date": "2026-11-07",
+  "go_version": "go1.26.0",
+  "os": "linux/amd64",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "samples": 5,
+  "pages": [
+    {
+      "name": "small",
+      "label": "Small blog post",
+      "bytes": 39192,
+      "head_bytes": 7366
+    },
+    {
+      "name": "medium",
+      "label": "Typical page",
+      "bytes": 157222,
+      "head_bytes": 38555
+    },
+    {
+      "name": "large",
+      "label": "News article",
+      "bytes": 716234,
+      "head_bytes": 156173
+    },
+    {
+      "name": "huge",
+      "label": "Shop product page",
+      "bytes": 1928557,
+      "head_bytes": 328530
+    }
+  ],
+  "results": [
+    {
+      "lib": "metagrab",
+      "page": "small",
+      "mode": "parse",
+      "ns_per_op": 69059.27895873593,
+      "alloc_bytes_per_op": 33640,
+      "allocs_per_op": 588
+    },
+    {
+      "lib": "metagrab",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 292212.91447861964,
+      "alloc_bytes_per_op": 38367,
+      "allocs_per_op": 680,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "metagrab",
+      "page": "medium",
+      "mode": "parse",
+      "ns_per_op": 179491.86001306764,
+      "alloc_bytes_per_op": 101192,
+      "allocs_per_op": 956
+    },
+    {
+      "lib": "metagrab",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 579689.7070961248,
+      "alloc_bytes_per_op": 118066,
+      "allocs_per_op": 1105,
+      "body_bytes_read_per_op": 121652
+    },
+    {
+      "lib": "metagrab",
+      "page": "large",
+      "mode": "parse",
+      "ns_per_op": 566627.4705,
+      "alloc_bytes_per_op": 322984,
+      "allocs_per_op": 1866
+    },
+    {
+      "lib": "metagrab",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 1164892.0706713782,
+      "alloc_bytes_per_op": 340416,
+      "allocs_per_op": 2017,
+      "body_bytes_read_per_op": 262758
+    },
+    {
+      "lib": "metagrab",
+      "page": "huge",
+      "mode": "parse",
+      "ns_per_op": 1094823.628242075,
+      "alloc_bytes_per_op": 605448,
+      "allocs_per_op": 2597
+    },
+    {
+      "lib": "metagrab",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 1938828.7640791477,
+      "alloc_bytes_per_op": 624459,
+      "allocs_per_op": 2749,
+      "body_bytes_read_per_op": 456181
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "small",
+      "mode": "parse",
+      "ns_per_op": 94494.82394045268,
+      "alloc_bytes_per_op": 68416,
+      "allocs_per_op": 631
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 313837.7561156412,
+      "alloc_bytes_per_op": 73104,
+      "allocs_per_op": 723,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "medium",
+      "mode": "parse",
+      "ns_per_op": 262614.7467838765,
+      "alloc_bytes_per_op": 140960,
+      "allocs_per_op": 1022
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 647149.1870835469,
+      "alloc_bytes_per_op": 145687,
+      "allocs_per_op": 1114,
+      "body_bytes_read_per_op": 157250
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "large",
+      "mode": "parse",
+      "ns_per_op": 783685.7733012628,
+      "alloc_bytes_per_op": 367392,
+      "allocs_per_op": 1949
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 1316772.3729903537,
+      "alloc_bytes_per_op": 372390,
+      "allocs_per_op": 2041,
+      "body_bytes_read_per_op": 716262
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "huge",
+      "mode": "parse",
+      "ns_per_op": 1790006.8943758574,
+      "alloc_bytes_per_op": 649848,
+      "allocs_per_op": 2680
+    },
+    {
+      "lib": "metagrab (rich)",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 2583064.784753363,
+      "alloc_bytes_per_op": 655807,
+      "allocs_per_op": 2773,
+      "body_bytes_read_per_op": 1928585
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "small",
+      "mode": "parse",
+      "ns_per_op": 413286.0146657572,
+      "alloc_bytes_per_op": 145401,
+      "allocs_per_op": 3091
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 753836.8404645476,
+      "alloc_bytes_per_op": 153039,
+      "allocs_per_op": 3183,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "medium",
+      "mode": "parse",
+      "ns_per_op": 1309596.770609319,
+      "alloc_bytes_per_op": 543419,
+      "allocs_per_op": 9742
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 2015424.7216174183,
+      "alloc_bytes_per_op": 551285,
+      "allocs_per_op": 9834,
+      "body_bytes_read_per_op": 157250
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "large",
+      "mode": "parse",
+      "ns_per_op": 5507276.957943926,
+      "alloc_bytes_per_op": 2193837,
+      "allocs_per_op": 36295
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 6603882.773480663,
+      "alloc_bytes_per_op": 2203154,
+      "allocs_per_op": 36392,
+      "body_bytes_read_per_op": 716262
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "huge",
+      "mode": "parse",
+      "ns_per_op": 14377053.67,
+      "alloc_bytes_per_op": 5932573,
+      "allocs_per_op": 88319
+    },
+    {
+      "lib": "otiai10/opengraph",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 15253906.0875,
+      "alloc_bytes_per_op": 5943499,
+      "allocs_per_op": 88421,
+      "body_bytes_read_per_op": 1928585
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "small",
+      "mode": "parse",
+      "ns_per_op": 180492.79537953794,
+      "alloc_bytes_per_op": 16256,
+      "allocs_per_op": 1244
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 447934.6068911511,
+      "alloc_bytes_per_op": 23862,
+      "allocs_per_op": 1336,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "medium",
+      "mode": "parse",
+      "ns_per_op": 621636.6193155181,
+      "alloc_bytes_per_op": 93672,
+      "allocs_per_op": 3714
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 1099687.5004374452,
+      "alloc_bytes_per_op": 101309,
+      "allocs_per_op": 3806,
+      "body_bytes_read_per_op": 157250
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "large",
+      "mode": "parse",
+      "ns_per_op": 2615261.753488372,
+      "alloc_bytes_per_op": 369496,
+      "allocs_per_op": 13538
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 3311653.610619469,
+      "alloc_bytes_per_op": 377226,
+      "allocs_per_op": 13630,
+      "body_bytes_read_per_op": 716262
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "huge",
+      "mode": "parse",
+      "ns_per_op": 6666592.108571429,
+      "alloc_bytes_per_op": 1310185,
+      "allocs_per_op": 32740
+    },
+    {
+      "lib": "dyatlov/go-opengraph",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 8492762.31724138,
+      "alloc_bytes_per_op": 1319012,
+      "allocs_per_op": 32835,
+      "body_bytes_read_per_op": 1928585
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "small",
+      "mode": "parse",
+      "ns_per_op": 477374.05486862443,
+      "alloc_bytes_per_op": 147968,
+      "allocs_per_op": 3189
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 908756.5531914893,
+      "alloc_bytes_per_op": 155632,
+      "allocs_per_op": 3281,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "medium",
+      "mode": "parse",
+      "ns_per_op": 1559100.6776859504,
+      "alloc_bytes_per_op": 545961,
+      "allocs_per_op": 9840
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 2300611.8884540116,
+      "alloc_bytes_per_op": 553899,
+      "allocs_per_op": 9933,
+      "body_bytes_read_per_op": 157250
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "large",
+      "mode": "parse",
+      "ns_per_op": 6482797.483695652,
+      "alloc_bytes_per_op": 2196201,
+      "allocs_per_op": 36392
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 7304823.668711657,
+      "alloc_bytes_per_op": 2205817,
+      "allocs_per_op": 36490,
+      "body_bytes_read_per_op": 716262
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "huge",
+      "mode": "parse",
+      "ns_per_op": 16130717.2125,
+      "alloc_bytes_per_op": 5934707,
+      "allocs_per_op": 88414
+    },
+    {
+      "lib": "goquery (hand-rolled)",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 17491579.5375,
+      "alloc_bytes_per_op": 5945648,
+      "allocs_per_op": 88518,
+      "body_bytes_read_per_op": 1928585
+    },
+    {
+      "lib": "badoux/goscraper",
+      "page": "small",
+      "mode": "fetch",
+      "ns_per_op": 436904.7428125,
+      "alloc_bytes_per_op": 163993,
+      "allocs_per_op": 591,
+      "body_bytes_read_per_op": 39220
+    },
+    {
+      "lib": "badoux/goscraper",
+      "page": "medium",
+      "mode": "fetch",
+      "ns_per_op": 954514.1446740859,
+      "alloc_bytes_per_op": 622648,
+      "allocs_per_op": 917,
+      "body_bytes_read_per_op": 157250
+    },
+    {
+      "lib": "badoux/goscraper",
+      "page": "large",
+      "mode": "fetch",
+      "ns_per_op": 3058365.806629834,
+      "alloc_bytes_per_op": 2412735,
+      "allocs_per_op": 1717,
+      "body_bytes_read_per_op": 716262
+    },
+    {
+      "lib": "badoux/goscraper",
+      "page": "huge",
+      "mode": "fetch",
+      "ns_per_op": 6822757.645161291,
+      "alloc_bytes_per_op": 4788778,
+      "allocs_per_op": 2364,
+      "body_bytes_read_per_op": 1928585
+    }
+  ],
+  "features": [
+    {
+      "feature": "Title",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "yes",
+        "dyatlov/go-opengraph": "yes",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "yes"
+      }
+    },
+    {
+      "feature": "Description",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "yes",
+        "dyatlov/go-opengraph": "yes",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "yes"
+      }
+    },
+    {
+      "feature": "Preview image as absolute URL",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "yes",
+        "dyatlov/go-opengraph": "partial",
+        "goquery (hand-rolled)": "partial",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "yes"
+      }
+    },
+    {
+      "feature": "Best favicon (apple-touch-icon over icon)",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "partial",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "partial",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "partial"
+      }
+    },
+    {
+      "feature": "Canonical URL",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Author and published time",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Twitter Card",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "JSON-LD (including in \u003cbody\u003e)",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "yes",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Non-UTF-8 page decoded",
+      "measured": true,
+      "values": {
+        "badoux/goscraper": "yes",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "no",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Stops reading after \u003c/head\u003e when it can",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "no",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "SSRF protection (private IPs, redirects, DNS rebinding)",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Retries with backoff and Retry-After",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Response size limit",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "context.Context cancellation",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "yes"
+      }
+    },
+    {
+      "feature": "oEmbed (YouTube, Vimeo, Spotify, X, ...)",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Structured errors with codes",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "no",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "Bulk fetch with bounded concurrency",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "n/a",
+        "goquery (hand-rolled)": "n/a",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "no"
+      }
+    },
+    {
+      "feature": "HTTP API and CLI included",
+      "measured": false,
+      "values": {
+        "badoux/goscraper": "no",
+        "dyatlov/go-opengraph": "no",
+        "goquery (hand-rolled)": "no",
+        "metagrab (rich)": "yes",
+        "otiai10/opengraph": "partial"
+      }
+    }
+  ],
+  "libs": [
+    {
+      "name": "metagrab",
+      "module": "github.com/josephgoksu/metagrab",
+      "version": "this repository"
+    },
+    {
+      "name": "otiai10/opengraph",
+      "module": "github.com/otiai10/opengraph/v2",
+      "version": "v2.2.0"
+    },
+    {
+      "name": "dyatlov/go-opengraph",
+      "module": "github.com/dyatlov/go-opengraph/opengraph",
+      "version": "v0.0.0-20220524092352-606d7b1e5f8a"
+    },
+    {
+      "name": "goquery (hand-rolled)",
+      "module": "github.com/PuerkitoBio/goquery",
+      "version": "v1.13.0"
+    },
+    {
+      "name": "badoux/goscraper",
+      "module": "github.com/badoux/goscraper",
+      "version": "v0.0.0-20190827161153-36995ce6b19f"
+    }
+  ]
+}

@@ -143,6 +143,7 @@ const (
 	defaultRetryDelay   = 250 * time.Millisecond
 	defaultMaxRetryWait = 30 * time.Second
 	defaultMaxRedirects = 5
+	maxDrainBytes       = 64 * 1024
 )
 
 var (
@@ -325,7 +326,13 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 			return nil, classifyContextOrNetworkError(parsedURL.String(), "retry wait interrupted", err)
 		}
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// Read a little of what is left so the connection can go back to the
+		// pool; a body closed early forces a new TCP+TLS handshake next time.
+		// Larger leftovers are cheaper to drop than to download.
+		_, _ = io.CopyN(io.Discard, resp.Body, maxDrainBytes)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &FetchError{
@@ -348,27 +355,9 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 		baseURL = resp.Request.URL.String()
 	}
 
-	if mask.Has(ContentField) {
-		rawBytes, err := readBodyWithLimit(resp.Body, c.maxBodySize)
-		if err != nil {
-			if errors.Is(err, errBodyTooLarge) {
-				return nil, newFetchError(ErrorCodeBodyTooLarge, parsedURL.String(), "response body exceeded max size", err)
-			}
-			return nil, classifyContextOrReadError(parsedURL.String(), "failed to read response body", err)
-		}
-		bodyBytes := decodeToUTF8(rawBytes, contentType)
-
-		doc, err := html.Parse(bytes.NewReader(bodyBytes))
-		if err != nil {
-			return nil, newFetchError(ErrorCodeParseHTML, parsedURL.String(), "failed to parse HTML", err)
-		}
-		extractMetadata(doc, link, baseURL, mask)
-		link.Content = string(bodyBytes)
-	} else {
-		r := utf8Reader(io.LimitReader(resp.Body, c.maxBodySize), contentType)
-		if err := extractMetadataFromHead(r, link, baseURL, mask); err != nil {
-			return nil, classifyContextOrReadError(parsedURL.String(), "failed to read HTML head", err)
-		}
+	if ferr := c.parseInto(resp.Body, link, baseURL, contentType, mask); ferr != nil {
+		ferr.URL = parsedURL.String()
+		return nil, ferr
 	}
 
 	if mask.Has(FaviconField) && link.Favicon == "" {
@@ -382,8 +371,11 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 				if mask.Has(TitleField) && link.Title == "" && data.Title != "" {
 					link.Title = data.Title
 				}
-				if data.AuthorName != "" && link.SiteName == "" {
-					link.SiteName = data.AuthorName
+				if data.ProviderName != "" && link.SiteName == "" {
+					link.SiteName = data.ProviderName
+				}
+				if data.AuthorName != "" && link.Author == "" {
+					link.Author = data.AuthorName
 				}
 				if link.Image == "" && data.ThumbnailURL != "" {
 					link.Image = data.ThumbnailURL
@@ -698,12 +690,12 @@ func applyMetaTag(name, property, content string, link *Link, mask Field) {
 }
 
 // extractMetadataFromHead streams the document with a tokenizer and stops at
-// <body> (or </head>), unless JSON-LD is requested, in which case it keeps
-// reading <script> elements in the body. r must already be size-limited.
+// <body> or </head>. When JSON-LD is requested, the rest of the document is
+// handed to scanJSONLD, which only looks for JSON-LD scripts.
+// r must already be size-limited.
 func extractMetadataFromHead(r io.Reader, link *Link, base string, mask Field) error {
 	z := html.NewTokenizer(r)
 	e := &extractor{link: link, base: base, mask: mask}
-	inBody := false
 
 	attrs := func(hasAttr bool, keys ...string) map[string]string {
 		out := make(map[string]string, len(keys))
@@ -739,13 +731,13 @@ loop:
 				if !mask.Has(JSONLDField) {
 					break loop
 				}
-				inBody = true
-				continue
+				// Only JSON-LD is left to collect: switch to the fast scanner.
+				rest := io.MultiReader(bytes.NewReader(z.Buffered()), r)
+				if err := scanJSONLD(rest, e); err != nil {
+					return err
+				}
+				break loop
 			}
-			if inBody && tag != "script" {
-				continue
-			}
-
 			switch tag {
 			case "title":
 				if tt == html.StartTagToken {
@@ -763,9 +755,6 @@ loop:
 				e.linkTag(a["rel"], a["href"], a["sizes"])
 			case "script":
 				if !e.wantJSONLD() {
-					if inBody {
-						break loop // nothing left to collect
-					}
 					continue
 				}
 				a := attrs(hasAttr, "type")
@@ -780,7 +769,13 @@ loop:
 			}
 		case html.EndTagToken:
 			name, _ := z.TagName()
-			if string(name) == "head" && !mask.Has(JSONLDField) {
+			if string(name) == "head" {
+				if mask.Has(JSONLDField) {
+					rest := io.MultiReader(bytes.NewReader(z.Buffered()), r)
+					if err := scanJSONLD(rest, e); err != nil {
+						return err
+					}
+				}
 				break loop
 			}
 		}
