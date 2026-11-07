@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-07
+
 First tagged release. Before this, metagrab was only available as untagged
 pseudo-versions (`v0.0.0-2026...`).
 
