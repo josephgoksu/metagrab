@@ -7,17 +7,17 @@
 In-scope:
 - Metadata fetching/parsing primitives (title, description, OG, Twitter Cards, favicon, canonical URL, author/date, JSON-LD, oEmbed)
 - Opt-in field bitmask for controlling extraction scope (`uint16`, 8 bits used)
-- oEmbed provider registry with ~30 compiled-in providers
-- Public Go API (`Fetch`, `FetchBulk`, `FetchBulkResults`)
+- oEmbed provider registry with 23 compiled-in providers
+- Public Go API (`Fetch`, `Parse`, `FetchBulkResults`, deprecated `FetchBulk`)
 - SSRF protection (`WithDenyPrivateNetworks`, `DenyPrivateIPs`, `IsPublicAddr`)
 - `httphandler/` — shared HTTP adapter (`http.Handler`)
-- Library tests and benchmarks
-- CLI tool in `cmd/` with field presets, retries, and bulk fetch
+- Library tests and benchmarks; comparison benchmarks in `bench/` (separate module)
+- CLI in `cmd/metagrab` with field presets, retries, bulk fetch and `serve`
 - Deployment examples in `examples/` (standalone, Lambda, CF Container)
 
 Out-of-scope:
 - Production deployment infrastructure (Terraform, CDK, etc.)
-- CI/CD pipelines for deployed services
+- Caching and rate limiting (do these at the edge or in your service)
 
 ## Why this boundary exists
 
@@ -26,7 +26,7 @@ The library and its HTTP adapter (`httphandler/`) are pure Go with zero deployme
 This separation protects:
 - API stability and versioning discipline
 - Faster test cycles (no Docker/Wrangler needed for `go test`)
-- Clean dependency graph (library has only `golang.org/x/net` and `golang.org/x/sync`)
+- Clean dependency graph (library has only `golang.org/x/net`, `golang.org/x/sync` and `golang.org/x/text`)
 - Reuse across multiple runtimes (VPS, Lambda, CF Containers, any Go HTTP server)
 
 ## Field bitmask capacity
@@ -59,3 +59,13 @@ The library ships `WithDenyPrivateNetworks()` (dial-time SSRF protection that al
 Production deployments should additionally implement:
 - Abuse controls (rate limiting, quotas)
 - Structured logs and reason-coded failures
+
+## Extraction paths
+
+| Mask | Path | Reads |
+| --- | --- | --- |
+| Without `JSONLDField` or `ContentField` | Streaming tokenizer (`extractMetadataFromHead`) | Until `</head>` or `<body>` |
+| With `JSONLDField` | Tokenizer for the head, then `scanJSONLD` for the body | Whole document, but the body is only scanned for JSON-LD scripts |
+| With `ContentField` | Full DOM parse (`extractMetadata`) | Whole document, buffered |
+
+All paths share the `extractor` type, so they apply the same rules. Inside `<body>`, only JSON-LD is collected.

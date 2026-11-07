@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 180" width="820" height="180" role="img" aria-label="metagrab: link previews for Go">
+  <style>
+    .name{fill:#f0efec;font:700 56px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:-1.5px}
+    .tag{fill:#c3c2b7;font:400 22px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+    .pill{fill:#134e4a} .pilltext{fill:#99f6e4;font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+  <svg x="16" y="22" width="136" height="136" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <clipPath id="card"><rect x="22" y="26" width="76" height="70" rx="10"/></clipPath>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <!-- link preview card -->
+  <g clip-path="url(#card)">
+    <rect x="22" y="26" width="76" height="70" fill="#ffffff"/>
+    <rect x="22" y="26" width="76" height="36" fill="#ccfbf1"/>
+    <circle cx="80" cy="38" r="5" fill="#14b8a6"/>
+    <path d="M22 62 L42 42 L56 54 L64 47 L80 62 Z" fill="#0f766e"/>
+  </g>
+  <rect x="31" y="70" width="46" height="7" rx="3.5" fill="#0f172a"/>
+  <rect x="31" y="83" width="30" height="5" rx="2.5" fill="#94a3b8"/>
+  <!-- link badge -->
+  <circle cx="96" cy="94" r="21" fill="#0f172a" stroke="#ffffff" stroke-width="4"/>
+  <g fill="none" stroke="#5eead4" stroke-width="4.5" stroke-linecap="round" transform="rotate(-45 96 94)">
+    <rect x="80" y="88" width="17" height="12" rx="6"/>
+    <rect x="95" y="88" width="17" height="12" rx="6"/>
+  </g>
+  </svg>
+  <text class="name" x="178" y="86">metagrab</text>
+  <text class="tag" x="180" y="122">Link previews for Go: fast, safe, one call.</text>
+  <rect class="pill" x="180" y="138" width="352" height="26" rx="13"/>
+  <text class="pilltext" x="194" y="156">Open Graph · Twitter · JSON-LD · oEmbed</text>
+</svg>
