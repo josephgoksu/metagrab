@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>metagrab: link previews for Go</title>
+<meta name="description" content="metagrab turns a URL into a link preview: title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed. A Go library, a CLI and an HTTP API. Open source, Apache-2.0.">
+<link rel="canonical" href="https://metagrab.josephgoksu.com/">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="metagrab">
+<meta property="og:title" content="metagrab: link previews for Go">
+<meta property="og:description" content="Turn any URL into a link preview. Fast, safe to expose, one call. Library, CLI and HTTP API.">
+<meta property="og:url" content="https://metagrab.josephgoksu.com/">
+<meta property="og:image" content="https://metagrab.josephgoksu.com/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="author" content="Joseph Goksu">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "metagrab",
+  "description": "Turn a URL into a link preview: title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed.",
+  "codeRepository": "https://github.com/josephgoksu/metagrab",
+  "programmingLanguage": "Go",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "version": "0.1.0",
+  "author": {"@type": "Person", "name": "Joseph Goksu", "url": "https://josephgoksu.com"}
+}
+</script>
+<style>
+:root {
+  --paper: #fbfaf4;
+  --grid: #d3e0ef;
+  --margin: #e8a3a3;
+  --ink: #22389a;
+  --ink-soft: #5869b1;
+  --text: #1d2b6b;
+  --hl: #ffe14d;
+  --on-hl: #22389a;
+  --teal: #0e7490;
+  --teal-soft: #ccfbf1;
+  --other: #a3acc9;
+  --card: #ffffff;
+  --code-bg: #f1f4fa;
+  --sans: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Spline Sans Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #11141f;
+    --grid: #232a3f;
+    --margin: #5c3442;
+    --ink: #e4e8f7;
+    --ink-soft: #9093a1;
+    --text: #d5daee;
+    --hl: #ffe14d;
+    --on-hl: #22389a;
+    --teal: #2dd4bf;
+    --teal-soft: #134e4a;
+    --other: #4b5574;
+    --card: #181c2b;
+    --code-bg: #0b0e17;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  color: var(--text);
+  font: 17px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+code, pre, .mono { font-family: var(--mono); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+.hl { background: linear-gradient(transparent 55%, var(--hl) 55%, var(--hl) 92%, transparent 92%); color: inherit; padding: 0 2px; }
+@media (prefers-color-scheme: dark) { .hl { color: var(--on-hl); background: var(--hl); border-radius: 2px; } }
+
+/* header */
+header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--grid); }
+header.top .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 18px var(--mono); color: var(--ink); text-decoration: none; }
+.brand img { width: 30px; height: 30px; }
+nav.links { display: flex; gap: 18px; margin-left: auto; font-size: 15px; }
+nav.links a { text-decoration: none; color: var(--ink-soft); }
+nav.links a:hover { color: var(--ink); }
+.gh { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--ink); color: var(--ink) !important; border-radius: 999px; padding: 4px 12px; }
+@media (max-width: 720px) { nav.links a:not(.gh) { display: none; } }
+
+/* sections */
+section { padding: 72px 0; }
+section + section { border-top: 1px dashed var(--grid); }
+h1, h2, h3 { color: var(--ink); line-height: 1.15; margin: 0 0 12px; }
+h1 { font-size: clamp(36px, 6vw, 60px); letter-spacing: -0.02em; }
+h2 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.01em; }
+h3 { font-size: 20px; }
+.kicker { font: 500 13px var(--mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); margin-bottom: 10px; }
+.lead { font-size: 20px; max-width: 640px; color: var(--text); }
+.muted { color: var(--ink-soft); }
+
+/* hero */
+.hero { padding: 64px 0 56px; }
+.hero-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: center; }
+@media (max-width: 880px) { .hero-grid { grid-template-columns: 1fr; } }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 26px; }
+.pill { font: 500 13px var(--mono); border: 1px solid var(--grid); background: var(--card); border-radius: 999px; padding: 3px 10px; color: var(--ink-soft); }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-weight: 700; text-decoration: none; border: 2px solid var(--ink); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.ghost { color: var(--ink); background: var(--card); }
+
+/* code / tabs */
+.panel { background: var(--card); border: 1.5px solid var(--grid); border-radius: 14px; box-shadow: 4px 4px 0 var(--grid); overflow: hidden; }
+.tabs { display: flex; gap: 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--grid); overflow-x: auto; }
+.tabs button { font: 500 13px var(--mono); background: none; border: 0; padding: 8px 12px; color: var(--ink-soft); cursor: pointer; border-radius: 8px 8px 0 0; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--code-bg); box-shadow: inset 0 -2px 0 var(--teal); }
+pre { margin: 0; padding: 16px 18px; background: var(--code-bg); font-size: 13.5px; line-height: 1.65; overflow-x: auto; color: var(--text); }
+.code-wrap { position: relative; }
+.copy { position: absolute; top: 8px; right: 8px; font: 500 12px var(--mono); background: var(--card); color: var(--ink-soft); border: 1px solid var(--grid); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.copy:hover { color: var(--ink); }
+.c { color: var(--ink-soft); }
+.k { color: var(--teal); }
+.s { color: #b45309; }
+@media (prefers-color-scheme: dark) { .s { color: #f4b860; } }
+
+/* demo */
+.demo { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.35fr) minmax(0,.95fr); gap: 18px; align-items: stretch; margin-top: 32px; }
+@media (max-width: 920px) { .demo { grid-template-columns: 1fr; } }
+.step-label { font: 600 12px var(--mono); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 8px; }
+.urlbox { font: 14px var(--mono); background: var(--card); border: 1.5px solid var(--grid); border-radius: 10px; padding: 12px 14px; word-break: break-all; color: var(--ink); }
+.masks { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 6px; }
+.masks button { font: 500 13px var(--mono); border: 1.5px solid var(--grid); background: var(--card); color: var(--ink-soft); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.masks button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); background: var(--hl); color: var(--on-hl); }
+.mask-note { font-size: 14px; color: var(--ink-soft); min-height: 44px; }
+#json { min-height: 340px; font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.json-key { color: var(--teal); }
+.json-new { background: color-mix(in srgb, var(--hl) 45%, transparent); border-radius: 3px; }
+.preview-card { background: var(--card); border: 1.5px solid var(--grid); border-radius: 14px; overflow: hidden; box-shadow: 4px 4px 0 var(--grid); }
+.pc-img { height: 150px; background: linear-gradient(135deg, #2dd4bf, #0e7490); position: relative; transition: opacity .2s; }
+.pc-img svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pc-body { padding: 14px 16px 16px; }
+.pc-site { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); }
+.pc-fav { width: 18px; height: 18px; border-radius: 5px; background: var(--ink); display: inline-block; }
+.pc-title { font-weight: 700; color: var(--ink); margin: 6px 0 4px; font-size: 17px; line-height: 1.3; }
+.pc-desc { font-size: 14px; color: var(--text); margin: 0; }
+.pc-meta { font: 12px var(--mono); color: var(--ink-soft); margin-top: 10px; }
+.ghosted { opacity: .18; filter: grayscale(1); }
+.arrow { display: none; }
+
+/* pipeline */
+.pipeline { margin-top: 36px; }
+.pipeline svg { width: 100%; height: auto; display: block; }
+.pipe-box { fill: var(--card); stroke: var(--grid); stroke-width: 1.5; }
+.pipe-box.key { stroke: var(--teal); stroke-width: 2; }
+.pipe-title { font: 700 14px var(--sans); fill: var(--ink); }
+.pipe-sub { font: 12px var(--mono); fill: var(--ink-soft); }
+.pipe-line { stroke: var(--ink-soft); stroke-width: 1.5; fill: none; }
+.pipe-arrow { fill: var(--ink-soft); }
+.pipe-tag { font: 600 11px var(--mono); fill: var(--teal); letter-spacing: .06em; }
+.pipe-mobile { display: none; }
+@media (max-width: 760px) { .pipe-desktop { display: none; } .pipe-mobile { display: block; } }
+.steps-list { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.steps-list li { counter-increment: s; background: var(--card); border: 1.5px solid var(--grid); border-radius: 12px; padding: 12px 14px 12px 52px; position: relative; margin-bottom: 10px; }
+.steps-list li::before { content: counter(s); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 700 13px/26px var(--mono); text-align: center; }
+.steps-list b { color: var(--ink); }
+
+.read-bar { margin-top: 28px; background: var(--card); border: 1.5px solid var(--grid); border-radius: 14px; padding: 18px 20px; }
+.read-track { height: 22px; border-radius: 6px; background: var(--grid); position: relative; overflow: hidden; margin: 10px 0 8px; }
+.read-fill { position: absolute; inset: 0 auto 0 0; background: var(--teal); border-radius: 6px 0 0 6px; }
+.read-legend { display: flex; justify-content: space-between; font: 13px var(--mono); color: var(--ink-soft); flex-wrap: wrap; gap: 8px; }
+
+/* ways */
+.ways { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 32px; }
+@media (max-width: 820px) { .ways { grid-template-columns: 1fr; } }
+.way h3 { display: flex; align-items: center; gap: 10px; padding: 16px 18px 0; }
+.way p { padding: 0 18px; margin: 6px 0 14px; font-size: 15px; }
+.badge { font: 600 11px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); text-transform: uppercase; letter-spacing: .06em; }
+
+/* bench */
+.bench { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; margin-top: 28px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: 1fr; } }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--card); border: 1.5px solid var(--grid); border-radius: 10px; padding: 4px; }
+.seg button { font: 500 13px var(--sans); border: 0; background: none; padding: 6px 10px; border-radius: 7px; color: var(--ink-soft); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.chart { background: var(--card); border: 1.5px solid var(--grid); border-radius: 14px; padding: 18px 20px 14px; margin-top: 14px; box-shadow: 4px 4px 0 var(--grid); }
+.bar-row { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; margin: 10px 0; font-size: 14px; }
+@media (max-width: 520px) { .bar-row { grid-template-columns: 1fr; gap: 4px; } }
+.bar-name { color: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+.bar-name.me { color: var(--ink); font-weight: 600; }
+.bar-track { position: relative; height: 22px; }
+.bar { height: 22px; border-radius: 0 4px 4px 0; background: var(--other); transition: width .45s cubic-bezier(.2,.8,.2,1); min-width: 3px; }
+.bar.me { background: var(--teal); }
+.bar-val { position: absolute; top: 1px; font: 600 12.5px/20px var(--mono); color: var(--text); white-space: nowrap; padding-left: 8px; transition: left .45s cubic-bezier(.2,.8,.2,1); }
+.chart-foot { font-size: 13px; color: var(--ink-soft); margin-top: 10px; border-top: 1px solid var(--grid); padding-top: 10px; }
+.stat-big { font: 700 56px/1 var(--mono); color: var(--teal); }
+.stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.stat { background: var(--card); border: 1.5px solid var(--grid); border-radius: 12px; padding: 14px; }
+.stat .v { font: 700 26px var(--mono); color: var(--ink); }
+.stat .l { font-size: 13px; color: var(--ink-soft); }
+
+table.feat { width: 100%; border-collapse: collapse; margin-top: 28px; font-size: 14px; background: var(--card); border: 1.5px solid var(--grid); border-radius: 12px; overflow: hidden; }
+table.feat th, table.feat td { padding: 9px 12px; border-bottom: 1px solid var(--grid); text-align: center; }
+table.feat th:first-child, table.feat td:first-child { text-align: left; }
+table.feat thead th { font: 600 12px var(--mono); color: var(--ink-soft); background: var(--code-bg); }
+table.feat thead th.me { color: var(--teal); }
+.feat-scroll { overflow-x: auto; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; border: 2px solid var(--teal); }
+.dot.y { background: var(--teal); }
+.dot.p { background: linear-gradient(90deg, var(--teal) 50%, transparent 50%); }
+.dot.n { border-color: var(--other); }
+.dash { color: var(--other); }
+
+/* checklist */
+.checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+@media (max-width: 820px) { .checks { grid-template-columns: 1fr; } }
+.check { background: var(--card); border: 1.5px solid var(--grid); border-left: 4px solid var(--margin); border-radius: 10px; padding: 14px 16px; font-size: 15px; }
+.check b { color: var(--ink); display: block; margin-bottom: 4px; }
+
+/* contribute */
+.contrib { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 28px; }
+@media (max-width: 820px) { .contrib { grid-template-columns: 1fr; } }
+.ideas { list-style: none; margin: 0; padding: 0; }
+.ideas li { padding: 12px 0; border-bottom: 1px dashed var(--grid); }
+.ideas li b { color: var(--ink); }
+.ideas .where { font: 12px var(--mono); color: var(--ink-soft); display: block; margin-top: 2px; }
+
+footer { padding: 40px 0 56px; border-top: 1px solid var(--grid); font-size: 15px; color: var(--ink-soft); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+.hero-grid > *, .demo > *, .ways > *, .bench > *, .contrib > *, .checks > * { min-width: 0; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="logo.svg" alt="" width="30" height="30">metagrab</a>
+    <nav class="links">
+      <a href="#how">How it works</a>
+      <a href="#use">Use it</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a href="#contribute">Improve it</a>
+      <a class="gh" href="https://github.com/josephgoksu/metagrab">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="kicker">Open source · Go · v0.1.0</div>
+      <h1>Paste a URL.<br>Get a <span class="hl">link preview</span>.</h1>
+      <p class="lead">metagrab reads a web page and returns what a preview card needs: title, description, image, favicon, author, date, Open Graph, Twitter Cards, JSON-LD and oEmbed. Use it as a Go library, a CLI, or a ready-made HTTP API.</p>
+      <div class="pills">
+        <span class="pill">3.9x to 10.8x faster on big pages</span>
+        <span class="pill">SSRF-safe</span>
+        <span class="pill">only golang.org/x deps</span>
+        <span class="pill">Apache-2.0</span>
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="#use">Get started</a>
+        <a class="btn ghost" href="https://github.com/josephgoksu/metagrab">Star on GitHub</a>
+      </div>
+    </div>
+    <div class="panel" data-tabs>
+      <div class="tabs" role="tablist" aria-label="Install">
+        <button role="tab" aria-selected="true" data-tab="0">go get</button>
+        <button role="tab" aria-selected="false" data-tab="1">Homebrew</button>
+        <button role="tab" aria-selected="false" data-tab="2">go install</button>
+        <button role="tab" aria-selected="false" data-tab="3">Docker</button>
+      </div>
+      <div class="code-wrap" data-pane="0"><button class="copy">copy</button><pre>go get github.com/josephgoksu/metagrab@latest</pre></div>
+      <div class="code-wrap" data-pane="1" hidden><button class="copy">copy</button><pre>brew install --cask josephgoksu/tap/metagrab</pre></div>
+      <div class="code-wrap" data-pane="2" hidden><button class="copy">copy</button><pre>go install github.com/josephgoksu/metagrab/cmd/metagrab@latest</pre></div>
+      <div class="code-wrap" data-pane="3" hidden><button class="copy">copy</button><pre>docker run --rm -p 8080:8080 ghcr.io/josephgoksu/metagrab</pre></div>
+      <pre><span class="c">// then, in Go</span>
+link, err := metagrab.<span class="k">Fetch</span>(ctx, <span class="s">"https://go.dev"</span>, metagrab.PreviewFields)
+fmt.Println(link.Title, link.Image, link.Favicon)</pre>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="kicker">See it</div>
+    <h2>One URL in, one tidy object out</h2>
+    <p class="lead">You choose how much to extract with a field mask. Pick one and watch what comes back, and what the card can show.</p>
+    <div class="demo">
+      <div>
+        <p class="step-label">1 · Input</p>
+        <div class="urlbox">https://blog.example.com/posts/fast-link-previews</div>
+        <div class="masks" role="group" aria-label="Field mask">
+          <button aria-pressed="false" data-mask="metadata">MetadataFields</button>
+          <button aria-pressed="true" data-mask="preview">PreviewFields</button>
+          <button aria-pressed="false" data-mask="rich">RichFields</button>
+        </div>
+        <p class="mask-note" id="mask-note"></p>
+      </div>
+      <div>
+        <p class="step-label">2 · metagrab.Link (JSON)</p>
+        <div class="panel"><pre id="json" aria-live="polite"></pre></div>
+      </div>
+      <div>
+        <p class="step-label">3 · Your preview card</p>
+        <div class="preview-card">
+          <div class="pc-img" id="pc-img">
+            <svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <circle cx="232" cy="44" r="18" fill="#ccfbf1"/>
+              <path d="M0 150 L90 70 L150 118 L190 86 L300 150 Z" fill="#0f766e"/>
+            </svg>
+          </div>
+          <div class="pc-body">
+            <div class="pc-site"><span class="pc-fav" id="pc-fav"></span><span id="pc-site">Example Blog</span></div>
+            <div class="pc-title">Making link previews fast</div>
+            <p class="pc-desc">How to unfurl a link in under a millisecond without a headless browser.</p>
+            <div class="pc-meta" id="pc-meta">Ada Lovelace · Article · 2026-11-07</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>It reads only what it needs</h2>
+    <p class="lead">Most preview data lives in <code>&lt;head&gt;</code>. metagrab streams the page, extracts as it goes, and stops at <code>&lt;/head&gt;</code> unless you asked for JSON-LD. Every connection passes a safety check first.</p>
+
+    <div class="pipeline">
+      <svg class="pipe-desktop" viewBox="0 0 1000 250" role="img" aria-label="Pipeline: URL, safety check, stream the head, extract, optional JSON-LD scan and oEmbed, then the Link result">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="pipe-arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+        <g>
+          <rect class="pipe-box" x="8" y="80" width="140" height="84" rx="12"/>
+          <text class="pipe-title" x="78" y="114" text-anchor="middle">URL</text>
+          <text class="pipe-sub" x="78" y="136" text-anchor="middle">validate, policy</text>
+        </g>
+        <g>
+          <rect class="pipe-box key" x="186" y="80" width="160" height="84" rx="12"/>
+          <text class="pipe-tag" x="266" y="70" text-anchor="middle">EVERY CONNECTION</text>
+          <text class="pipe-title" x="266" y="114" text-anchor="middle">Safety check</text>
+          <text class="pipe-sub" x="266" y="136" text-anchor="middle">no private IPs,</text>
+          <text class="pipe-sub" x="266" y="152" text-anchor="middle">redirects, rebinding</text>
+        </g>
+        <g>
+          <rect class="pipe-box key" x="384" y="80" width="160" height="84" rx="12"/>
+          <text class="pipe-tag" x="464" y="70" text-anchor="middle">STREAMING</text>
+          <text class="pipe-title" x="464" y="114" text-anchor="middle">Read &lt;head&gt;</text>
+          <text class="pipe-sub" x="464" y="136" text-anchor="middle">decode charset,</text>
+          <text class="pipe-sub" x="464" y="152" text-anchor="middle">stop at &lt;/head&gt;</text>
+        </g>
+        <g>
+          <rect class="pipe-box" x="582" y="80" width="170" height="84" rx="12"/>
+          <text class="pipe-title" x="667" y="114" text-anchor="middle">Extract</text>
+          <text class="pipe-sub" x="667" y="136" text-anchor="middle">OG, Twitter, meta,</text>
+          <text class="pipe-sub" x="667" y="152" text-anchor="middle">favicon, canonical</text>
+        </g>
+        <g>
+          <rect class="pipe-box" x="557" y="190" width="220" height="52" rx="12" stroke-dasharray="5 4"/>
+          <text class="pipe-sub" x="667" y="212" text-anchor="middle">optional: JSON-LD in body,</text>
+          <text class="pipe-sub" x="667" y="229" text-anchor="middle">oEmbed (23 providers)</text>
+        </g>
+        <g>
+          <rect class="pipe-box key" x="790" y="80" width="200" height="84" rx="12"/>
+          <text class="pipe-title" x="890" y="114" text-anchor="middle">metagrab.Link</text>
+          <text class="pipe-sub" x="890" y="136" text-anchor="middle">absolute URLs,</text>
+          <text class="pipe-sub" x="890" y="152" text-anchor="middle">or a coded error</text>
+        </g>
+        <path class="pipe-line" d="M148 122 H182" marker-end="url(#ah)"/>
+        <path class="pipe-line" d="M346 122 H380" marker-end="url(#ah)"/>
+        <path class="pipe-line" d="M544 122 H578" marker-end="url(#ah)"/>
+        <path class="pipe-line" d="M752 122 H786" marker-end="url(#ah)"/>
+        <path class="pipe-line" d="M667 164 V186" stroke-dasharray="4 4"/>
+      </svg>
+      <ol class="steps-list pipe-mobile">
+        <li><b>URL.</b> Validated and checked against your URL policy.</li>
+        <li><b>Safety check, every connection.</b> No private or cloud-metadata IPs, also after redirects and DNS rebinding.</li>
+        <li><b>Read &lt;head&gt;, streaming.</b> Charset decoded, stops at &lt;/head&gt;.</li>
+        <li><b>Extract.</b> Open Graph, Twitter, meta, favicon, canonical. Optional JSON-LD and oEmbed.</li>
+        <li><b>metagrab.Link.</b> Absolute URLs, or a FetchError with a code.</li>
+      </ol>
+    </div>
+
+    <div class="read-bar">
+      <strong style="color:var(--ink)">On a 1.8 MB shop product page, metagrab reads 445 KB.</strong>
+      <div class="read-track" role="img" aria-label="445 KB read of 1.8 MB, about 24 percent"><div class="read-fill" style="width:24%"></div></div>
+      <div class="read-legend"><span>■ read by metagrab: 445 KB (24%)</span><span>whole page: 1.8 MB, which DOM-based libraries download and parse</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <div class="kicker">Use it</div>
+    <h2>Four ways in</h2>
+    <p class="lead">Same extractor everywhere. Start with the library; reach for the CLI or the HTTP API when your stack isn't Go.</p>
+    <div class="ways">
+      <div class="panel way">
+        <h3>Go library <span class="badge">most common</span></h3>
+        <p>One call with a context and a field mask. Errors are <code>*FetchError</code> with a machine-readable code.</p>
+        <div class="code-wrap"><button class="copy">copy</button><pre>client := metagrab.<span class="k">NewClient</span>(
+    metagrab.WithTimeout(5 * time.Second),
+    metagrab.WithRetries(2),
+    metagrab.WithDenyPrivateNetworks(), <span class="c">// URLs from users</span>
+)
+link, err := client.<span class="k">Fetch</span>(ctx, url, metagrab.PreviewFields)</pre></div>
+      </div>
+      <div class="panel way">
+        <h3>Parse HTML you have <span class="badge">no network</span></h3>
+        <p>From a crawler, a cache or a test fixture. Relative URLs resolve against the page URL.</p>
+        <div class="code-wrap"><button class="copy">copy</button><pre>link, err := metagrab.<span class="k">Parse</span>(resp.Body,
+    <span class="s">"https://example.com/post"</span>,
+    metagrab.RichFields) <span class="c">// + JSON-LD</span>
+fmt.Println(link.ContentType) <span class="c">// "Article"</span></pre></div>
+      </div>
+      <div class="panel way">
+        <h3>CLI</h3>
+        <p>JSON to stdout. Several URLs run concurrently. Exit code 2 when any URL fails, for scripts.</p>
+        <div class="code-wrap"><button class="copy">copy</button><pre>metagrab https://go.dev
+metagrab -fields=rich https://a.com https://b.com
+metagrab -compact https://go.dev | jq .title</pre></div>
+      </div>
+      <div class="panel way">
+        <h3>HTTP API</h3>
+        <p>For any language. Private networks blocked by default, API key, JSON logs, graceful shutdown.</p>
+        <div class="code-wrap"><button class="copy">copy</button><pre>docker run -p 8080:8080 -e METAGRAB_API_KEY=secret \
+  ghcr.io/josephgoksu/metagrab
+
+curl -H "X-API-Key: secret" localhost:8080/fetch \
+  -d '{"url":"https://go.dev","fields":111}'</pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="benchmarks">
+  <div class="wrap">
+    <div class="kicker">Benchmarks</div>
+    <h2>How it compares</h2>
+    <p class="lead">Time to fetch one link preview from a local server, median of 5 runs. Lower is better. Same pages, same machine, every library.</p>
+    <div class="bench">
+      <div>
+        <div class="seg" role="group" aria-label="Page size">
+          <button aria-pressed="false" data-page="small">Blog post · 38 KB</button>
+          <button aria-pressed="false" data-page="medium">Typical · 154 KB</button>
+          <button aria-pressed="false" data-page="large">News · 699 KB</button>
+          <button aria-pressed="true" data-page="huge">Shop · 1.8 MB</button>
+        </div>
+        <div class="chart" id="chart" role="img" aria-label="Bar chart of fetch time per library"></div>
+      </div>
+      <div>
+        <div class="stat">
+          <div class="l">metagrab vs the fastest alternative</div>
+          <div class="stat-big" id="speedup">3.9x</div>
+          <div class="l" id="speedup-note">faster on the shop product page</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="v">83 KB</div><div class="l">allocated to parse a typical page (others: up to 533 KB)</div></div>
+          <div class="stat"><div class="v">24%</div><div class="l">of a 1.8 MB page read before it has the answer</div></div>
+        </div>
+        <p class="muted" style="font-size:14px;margin-top:14px">The libraries don't extract the same fields; the table below shows what each one returns. Reproduce on your machine: <code>cd bench &amp;&amp; go run .</code> · <a href="https://github.com/josephgoksu/metagrab/tree/master/docs/benchmarks">method and raw numbers</a></p>
+      </div>
+    </div>
+
+    <div class="feat-scroll">
+    <table class="feat">
+      <thead><tr><th>Feature</th><th class="me">metagrab</th><th>otiai10/opengraph</th><th>dyatlov/go-opengraph</th><th>badoux/goscraper</th></tr></thead>
+      <tbody id="feat-body"></tbody>
+    </table>
+    </div>
+    <p class="muted" style="font-size:13px"><span class="dot y"></span> yes · <span class="dot p"></span> partial · <span class="dot n"></span> no · – not applicable (parser only). The first nine rows are checked by running each library against test pages; the rest come from reading their APIs. Versions and details in the <a href="https://github.com/josephgoksu/metagrab/blob/master/docs/benchmarks/README.md#features">benchmark report</a>.</p>
+  </div>
+</section>
+
+<section id="production">
+  <div class="wrap">
+    <div class="kicker">In production</div>
+    <h2>Running it behind a product</h2>
+    <p class="lead">metagrab fetches pages that strangers pick. These six habits keep that boring.</p>
+    <div class="checks">
+      <div class="check"><b>Block private networks</b><code>WithDenyPrivateNetworks()</code> whenever URLs come from users. <code>metagrab serve</code> does it by default.</div>
+      <div class="check"><b>Short timeouts</b>3 to 10 seconds, plus a request context so cancelled requests stop fetching.</div>
+      <div class="check"><b>Cache results</b>Previews rarely change. Cache each <code>Link</code> by URL, for example for 24 hours.</div>
+      <div class="check"><b>Key and rate limit</b>Set <code>METAGRAB_API_KEY</code> and rate-limit at your edge. Bound bulk work with <code>WithConcurrency</code>.</div>
+      <div class="check"><b>Retry politely</b><code>WithRetries(1-2)</code> covers 429 and 5xx, and respects <code>Retry-After</code> up to a cap.</div>
+      <div class="check"><b>Treat output as untrusted</b>Escape every string. Never inject <code>OEmbed.HTML</code> without a sandboxed iframe.</div>
+    </div>
+  </div>
+</section>
+
+<section id="contribute">
+  <div class="wrap">
+    <div class="kicker">Improve it</div>
+    <h2>Make it better with me</h2>
+    <p class="lead">metagrab is small on purpose: one package, no heavy dependencies, every change measured. Pull requests are welcome.</p>
+    <div class="contrib">
+      <div>
+        <h3>Get running in a minute</h3>
+        <div class="panel"><div class="code-wrap"><button class="copy">copy</button><pre>git clone https://github.com/josephgoksu/metagrab
+cd metagrab
+go test -short -race ./...   <span class="c"># unit tests, no network</span>
+cd bench &amp;&amp; go run .         <span class="c"># benchmarks + charts</span></pre></div></div>
+        <p style="font-size:15px;margin-top:16px">Read <a href="https://github.com/josephgoksu/metagrab/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a> and <a href="https://github.com/josephgoksu/metagrab/blob/master/ARCHITECTURE.md">ARCHITECTURE.md</a> first. Keep the API additive, add a test for each fix, and run the benchmarks when you touch the parser. Report security issues privately, as <a href="https://github.com/josephgoksu/metagrab/blob/master/SECURITY.md">SECURITY.md</a> describes.</p>
+      </div>
+      <div>
+        <h3>Good places to start</h3>
+        <ul class="ideas">
+          <li><b>Add an oEmbed provider.</b> One entry with host names and an endpoint, plus a test. <span class="where">oembed.go · oembedRegistry</span></li>
+          <li><b>Add a real-world page to the benchmark corpus.</b> More page shapes make the numbers more honest. <span class="where">bench/corpus.go</span></li>
+          <li><b>Deployment examples.</b> Fly.io, Cloud Run or Kubernetes, next to the Lambda and Cloudflare ones. <span class="where">examples/</span></li>
+          <li><b>A caching wrapper.</b> An example of putting a TTL cache in front of <code>Client.Fetch</code>. <span class="where">examples/</span></li>
+          <li><b>Report a page that previews badly.</b> Send the URL and what you expected; it becomes a test. <span class="where"><a href="https://github.com/josephgoksu/metagrab/issues/new/choose">open an issue</a></span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>metagrab is built by <a href="https://josephgoksu.com">Joseph Goksu</a> · Apache-2.0</span>
+    <span><a href="https://github.com/josephgoksu/metagrab">GitHub</a> · <a href="https://pkg.go.dev/github.com/josephgoksu/metagrab">pkg.go.dev</a> · <a href="https://github.com/josephgoksu/metagrab/releases">Releases</a> · <a href="https://github.com/josephgoksu/metagrab/blob/master/CHANGELOG.md">Changelog</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Tabs and copy buttons
+  document.querySelectorAll('[data-tabs]').forEach(function (root) {
+    var btns = root.querySelectorAll('[role=tab]');
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+        root.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== b.dataset.tab; });
+      });
+    });
+  });
+  document.querySelectorAll('.copy').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = b.parentElement.querySelector('pre').innerText;
+      try {
+        navigator.clipboard.writeText(text).then(function () {
+          b.textContent = 'copied'; setTimeout(function () { b.textContent = 'copy'; }, 1400);
+        });
+      } catch (e) {}
+    });
+  });
+
+  // Field mask demo
+  var base = {
+    url: 'https://blog.example.com/posts/fast-link-previews',
+    title: 'Making link previews fast',
+    description: 'How to unfurl a link in under a millisecond without a headless browser.',
+    image: 'https://blog.example.com/img/cover.png',
+    site_name: 'Example Blog',
+    author: 'Ada Lovelace',
+    published_at: '2026-11-07T09:00:00Z',
+    open_graph: { 'og:title': 'Making link previews fast', 'og:type': 'article', 'og:image': '/img/cover.png' },
+    twitter: { 'twitter:card': 'summary_large_image' }
+  };
+  var preview = { favicon: 'https://blog.example.com/apple-touch-icon.png', canonical_url: 'https://blog.example.com/posts/fast-link-previews' };
+  var rich = { content_type: 'Article', json_ld: [{ '@type': 'Article', headline: 'Making link previews fast', author: { name: 'Ada Lovelace' } }] };
+  var notes = {
+    metadata: 'MetadataFields (15): title, description, image, Open Graph, Twitter, author and date. Stops at </head>.',
+    preview: 'PreviewFields (111): adds the best favicon and the canonical URL. The usual choice for cards.',
+    rich: 'RichFields (239): adds JSON-LD, found anywhere in the page, and its @type. Reads the whole body.'
+  };
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function render(obj, fresh) {
+    var json = JSON.stringify(obj, null, 2);
+    return json.split('\n').map(function (line) {
+      var m = line.match(/^(\s*)"([^"]+)":/);
+      var h = esc(line).replace(/^(\s*)"([^"]+)":/, '$1<span class="json-key">"$2"</span>:');
+      if (m && m[1].length === 2 && fresh.indexOf(m[2]) >= 0) h = '<span class="json-new">' + h + '</span>';
+      return h;
+    }).join('\n');
+  }
+  function setMask(mask) {
+    var obj = Object.assign({}, base), fresh = [];
+    if (mask !== 'metadata') { Object.assign(obj, preview); if (mask === 'preview') fresh = Object.keys(preview); }
+    if (mask === 'rich') { Object.assign(obj, rich); fresh = Object.keys(rich); }
+    document.getElementById('json').innerHTML = render(obj, fresh);
+    document.getElementById('mask-note').textContent = notes[mask];
+    document.getElementById('pc-fav').classList.toggle('ghosted', mask === 'metadata');
+    var meta = document.getElementById('pc-meta');
+    meta.textContent = mask === 'rich' ? 'Ada Lovelace · Article · 2026-11-07' : 'Ada Lovelace · 2026-11-07';
+    document.querySelectorAll('[data-mask]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.mask === mask ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('[data-mask]').forEach(function (b) { b.addEventListener('click', function () { setMask(b.dataset.mask); }); });
+  setMask('preview');
+
+  // Benchmarks (microseconds, from docs/benchmarks/results.json, 2026-11-07)
+  var data = {
+    small:  { 'metagrab': 280,  'badoux/goscraper': 489,  'dyatlov/go-opengraph': 508,  'otiai10/opengraph': 814,   'goquery (hand-rolled)': 909 },
+    medium: { 'metagrab': 627,  'badoux/goscraper': 1115, 'dyatlov/go-opengraph': 1155, 'otiai10/opengraph': 2056,  'goquery (hand-rolled)': 2419 },
+    large:  { 'metagrab': 1119, 'badoux/goscraper': 3280, 'dyatlov/go-opengraph': 3674, 'otiai10/opengraph': 7018,  'goquery (hand-rolled)': 7597 },
+    huge:   { 'metagrab': 1841, 'badoux/goscraper': 7089, 'dyatlov/go-opengraph': 8346, 'otiai10/opengraph': 16875, 'goquery (hand-rolled)': 19838 }
+  };
+  var labels = { small: 'small blog post', medium: 'typical page', large: 'news article', huge: 'shop product page' };
+  var order = ['metagrab', 'badoux/goscraper', 'dyatlov/go-opengraph', 'otiai10/opengraph', 'goquery (hand-rolled)'];
+  var chart = document.getElementById('chart');
+  chart.innerHTML = order.map(function (lib, i) {
+    var me = lib === 'metagrab' ? ' me' : '';
+    return '<div class="bar-row"><div class="bar-name' + me + '">' + lib + '</div><div class="bar-track"><div class="bar' + me + '" data-i="' + i + '"></div><span class="bar-val" data-v="' + i + '"></span></div></div>';
+  }).join('') + '<div class="chart-foot">Fetch time per link preview, median. metagrab uses PreviewFields.</div>';
+  function fmt(us) { return us >= 1000 ? (us / 1000).toFixed(2) + ' ms' : us + ' µs'; }
+  function setPage(page) {
+    var row = data[page], max = 0;
+    order.forEach(function (l) { max = Math.max(max, row[l]); });
+    order.forEach(function (l, i) {
+      var pct = row[l] / max * 82;
+      chart.querySelector('[data-i="' + i + '"]').style.width = pct + '%';
+      var v = chart.querySelector('[data-v="' + i + '"]');
+      v.style.left = pct + '%';
+      v.textContent = fmt(row[l]);
+    });
+    var fastestOther = Math.min.apply(null, order.slice(1).map(function (l) { return row[l]; }));
+    document.getElementById('speedup').textContent = (fastestOther / row.metagrab).toFixed(1) + 'x';
+    document.getElementById('speedup-note').textContent = 'faster on the ' + labels[page];
+    chart.setAttribute('aria-label', 'Fetch time on the ' + labels[page] + ': ' + order.map(function (l) { return l + ' ' + fmt(row[l]); }).join(', '));
+    document.querySelectorAll('[data-page]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.page === page ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('[data-page]').forEach(function (b) { b.addEventListener('click', function () { setPage(b.dataset.page); }); });
+  setPage('huge');
+
+  // Feature table (from docs/benchmarks/results.json)
+  var feats = [
+    ['Title and description', 'y', 'y', 'y', 'y'],
+    ['Preview image as absolute URL', 'y', 'y', 'p', 'y'],
+    ['Best favicon (apple-touch-icon over icon)', 'y', 'p', 'n', 'p'],
+    ['Canonical URL', 'y', 'n', 'n', 'n'],
+    ['Author and published time', 'y', 'n', 'n', 'n'],
+    ['Twitter Card', 'y', 'n', 'n', 'n'],
+    ['JSON-LD (including in <body>)', 'y', 'n', 'n', 'n'],
+    ['Non-UTF-8 pages decoded', 'y', 'n', 'n', 'y'],
+    ['Stops reading after </head>', 'y', 'n', 'n', 'n'],
+    ['SSRF protection (redirects, DNS rebinding)', 'y', 'n', '–', 'n'],
+    ['Retries with Retry-After', 'y', 'n', '–', 'n'],
+    ['oEmbed (YouTube, Vimeo, Spotify, X, ...)', 'y', 'n', '–', 'n'],
+    ['Structured error codes', 'y', 'n', 'n', 'n'],
+    ['HTTP API and CLI included', 'y', 'p', 'n', 'n']
+  ];
+  var sym = { y: '<span class="dot y" role="img" aria-label="yes"></span>', p: '<span class="dot p" role="img" aria-label="partial"></span>', n: '<span class="dot n" role="img" aria-label="no"></span>', '–': '<span class="dash" title="not applicable: parser only">–</span>' };
+  document.getElementById('feat-body').innerHTML = feats.map(function (r) {
+    return '<tr><td>' + esc(r[0]) + '</td>' + r.slice(1).map(function (c) { return '<td>' + sym[c] + '</td>'; }).join('') + '</tr>';
+  }).join('');
+})();
+</script>
+</body>
+</html>
