@@ -30,6 +30,9 @@ jobs:
       - name: Build lambda example
         working-directory: examples/lambda
         run: go build ./...
+      - name: Vet benchmark harness
+        working-directory: bench
+        run: go vet ./...
 
   lint:
     name: Lint and vulnerability scan

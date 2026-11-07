@@ -161,6 +161,7 @@ func TestOEmbedDoesNotPolluteOpenGraph(t *testing.T) {
 			Type:         "video",
 			Title:        "oEmbed Title",
 			AuthorName:   "Channel Name",
+			ProviderName: "TestTube",
 			ThumbnailURL: "https://example.com/thumb.jpg",
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -193,9 +194,12 @@ func TestOEmbedDoesNotPolluteOpenGraph(t *testing.T) {
 	if link.Title != "Page Title" {
 		t.Errorf("Title = %q, want %q", link.Title, "Page Title")
 	}
-	// SiteName backfilled from oEmbed author.
-	if link.SiteName != "Channel Name" {
-		t.Errorf("SiteName = %q, want %q", link.SiteName, "Channel Name")
+	// SiteName from the oEmbed provider, Author from the oEmbed author.
+	if link.SiteName != "TestTube" || link.Author != "Channel Name" {
+		t.Errorf("SiteName = %q, Author = %q; want TestTube, Channel Name", link.SiteName, link.Author)
+	}
+	if link.Image != "https://example.com/thumb.jpg" {
+		t.Errorf("Image = %q, want the oEmbed thumbnail", link.Image)
 	}
 	// oEmbed data accessible via its own field.
 	if link.OEmbed.ThumbnailURL != "https://example.com/thumb.jpg" {
