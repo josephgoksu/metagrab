@@ -68,6 +68,9 @@ homebrew_casks:
       name: homebrew-tap
       token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
     directory: Casks
+    # Without the tap token, publish the GitHub release and skip the cask
+    # instead of failing the whole release.
+    skip_upload: '{{ if eq (envOrDefault "HOMEBREW_TAP_TOKEN" "") "" }}true{{ else }}false{{ end }}'
     commit_author:
       name: Joseph Goksu
       email: josephgoksu@gmail.com
