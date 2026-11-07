@@ -89,6 +89,10 @@ func WithURLPolicy(policy URLPolicy) Option {
 // in the dialer after DNS resolution, so it covers redirects and DNS
 // rebinding. Use it whenever URLs come from untrusted input.
 //
+// HTTP_PROXY and HTTPS_PROXY are ignored while it is set, because through a
+// proxy the dialer only sees the proxy's address and could not enforce the
+// check. If your egress must go through a proxy, enforce the policy there.
+//
 // Ignored when WithHTTPClient is also set: in that case, configure your own
 // transport (for example with a net.Dialer Control function).
 func WithDenyPrivateNetworks() Option {

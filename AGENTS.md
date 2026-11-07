@@ -12,7 +12,7 @@ Cards, favicon, canonical URL, JSON-LD and oEmbed.
 
 | Path | What it holds |
 | --- | --- |
-| `metagrab.go` | `Client`, `Fetch`, bulk fetch, extraction (DOM walker and streaming head parser), errors |
+| `metagrab.go` | `Client`, `Fetch`, bulk fetch, extraction (streaming head tokenizer), charset detection, errors |
 | `parse.go` | `Parse` for HTML you already have; shared `parseInto` |
 | `jsonld_scan.go` | Fast body scanner for JSON-LD scripts (used by `RichFields`) |
 | `policy.go` | SSRF protection: `IsPublicAddr`, `DenyPrivateIPs`, dial-time check |
@@ -43,9 +43,10 @@ govulncheck, a GoReleaser snapshot and a Docker build.
 - The library depends only on `golang.org/x/net`, `golang.org/x/sync` and
   `golang.org/x/text`. Do not add dependencies to the root module. Comparison
   libraries belong in `bench/go.mod`.
-- Both extraction paths (DOM walker for `ContentField`, streaming tokenizer
-  otherwise) must give the same results. Add a test that runs both masks when
-  you change extraction.
+- Every mask must give the same metadata: `ContentField` buffers the body
+  but runs the same streaming extractor, so do not add a separate DOM-based
+  path. Add a test that runs both `ContentField` and non-`ContentField` masks
+  when you change extraction.
 - Tests must not use the network unless they are behind the `integration`
   build tag. Use `httptest`.
 - Every error returned to callers is a `*FetchError` with an `ErrorCode`.

@@ -11,7 +11,7 @@
 
 metagrab turns a URL into a link preview: title, description, image, favicon, canonical URL, author, date, Open Graph, Twitter Cards, JSON-LD and oEmbed. Use it as a Go library, a CLI, or a ready-made HTTP API.
 
-- **Fast.** It stops reading at `</head>` when it can. On a 1.8 MB product page it reads 445 KB and returns in 1.94 ms, 3.5x to 9.0x faster than the other Go libraries we tested. [Benchmarks](#benchmarks)
+- **Fast.** It stops reading at `</head>` when it can. On a 1.8 MB product page it reads 445 KB and returns in 1.84 ms, 3.9x to 10.8x faster than the other Go libraries we tested. [Benchmarks](#benchmarks)
 - **Safe to expose.** `WithDenyPrivateNetworks()` blocks private and cloud-metadata addresses on every connection, including redirects and DNS rebinding. Retries, timeouts and body limits are built in.
 - **Complete.** One call gives you what a preview card needs, with absolute URLs, the best favicon, charset decoding, and oEmbed for 23 providers.
 - **Small.** Only `golang.org/x` dependencies.
@@ -335,12 +335,12 @@ Time to fetch one link preview from a local server (median, lower is better). Fu
 
 | Page | metagrab | metagrab (rich) | Fastest other | Slowest other |
 | --- | ---: | ---: | ---: | ---: |
-| Small blog post (38 KB) | **292 µs** | 314 µs | 437 µs (badoux/goscraper) | 909 µs (goquery (hand-rolled)) |
-| Typical page (154 KB) | **580 µs** | 647 µs | 955 µs (badoux/goscraper) | 2.30 ms (goquery (hand-rolled)) |
-| News article (699 KB) | **1.16 ms** | 1.32 ms | 3.06 ms (badoux/goscraper) | 7.30 ms (goquery (hand-rolled)) |
-| Shop product page (1.8 MB) | **1.94 ms** | 2.58 ms | 6.82 ms (badoux/goscraper) | 17.49 ms (goquery (hand-rolled)) |
+| Small blog post (38 KB) | **280 µs** | 312 µs | 489 µs (badoux/goscraper) | 909 µs (goquery (hand-rolled)) |
+| Typical page (154 KB) | **627 µs** | 550 µs | 1.11 ms (badoux/goscraper) | 2.42 ms (goquery (hand-rolled)) |
+| News article (699 KB) | **1.12 ms** | 1.36 ms | 3.28 ms (badoux/goscraper) | 7.60 ms (goquery (hand-rolled)) |
+| Shop product page (1.8 MB) | **1.84 ms** | 2.22 ms | 7.09 ms (badoux/goscraper) | 19.84 ms (goquery (hand-rolled)) |
 
-`metagrab` uses `PreviewFields`; `metagrab (rich)` adds JSON-LD, which means scanning the whole body. On a typical page metagrab is 1.6x faster than the fastest alternative, and allocates 99 KB to parse it where the DOM-based libraries allocate up to 533 KB. The libraries do not extract the same fields; see the [feature comparison](docs/benchmarks/README.md#features).
+`metagrab` uses `PreviewFields`; `metagrab (rich)` adds JSON-LD, which means scanning the whole body. On a typical page metagrab is 1.8x faster than the fastest alternative, and allocates 83 KB to parse it where the DOM-based libraries allocate up to 533 KB. The libraries do not extract the same fields; see the [feature comparison](docs/benchmarks/README.md#features).
 
 Reproduce on your machine: `cd bench && go run .`
 

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-
-	"golang.org/x/net/html"
 )
 
 // Parse extracts metadata from an HTML document you already have, such as a
@@ -46,8 +44,11 @@ func (c *Client) Parse(r io.Reader, pageURL string, mask Field) (*Link, error) {
 }
 
 // parseInto reads an HTML document into link. With ContentField it buffers
-// and parses the whole document (up to maxBodySize); otherwise it streams
-// and stops as early as the mask allows.
+// the whole document (up to maxBodySize); otherwise it streams and stops as
+// early as the mask allows. Both run the same tokenizer-based extractor, so
+// the mask never changes what metadata is found. (A DOM parse would differ:
+// html.Parse moves <meta> tags that follow a stray element in <head> into
+// <body>, where they are ignored.)
 func (c *Client) parseInto(r io.Reader, link *Link, baseURL, contentType string, mask Field) *FetchError {
 	if mask.Has(ContentField) {
 		rawBytes, err := readBodyWithLimit(r, c.maxBodySize)
@@ -59,11 +60,9 @@ func (c *Client) parseInto(r io.Reader, link *Link, baseURL, contentType string,
 		}
 		bodyBytes := decodeToUTF8(rawBytes, contentType)
 
-		doc, err := html.Parse(bytes.NewReader(bodyBytes))
-		if err != nil {
+		if err := extractMetadataFromHead(bytes.NewReader(bodyBytes), link, baseURL, mask); err != nil {
 			return newFetchError(ErrorCodeParseHTML, "", "failed to parse HTML", err)
 		}
-		extractMetadata(doc, link, baseURL, mask)
 		link.Content = string(bodyBytes)
 		return nil
 	}

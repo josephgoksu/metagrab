@@ -43,6 +43,8 @@ func TestScanJSONLDEdgeCases(t *testing.T) {
 		{"unterminated tag", `<script type="application/ld+json"`, 0},
 		{"long body", strings.Repeat("<p>filler</p>", 20000) + `<script type="application/ld+json">{"@type":"A"}</script>`, 1},
 		{"not LD", `<script type="application/json">{"@type":"A"}</script>`, 0},
+		{"abrupt empty comments", `<!--><!---><script type="application/ld+json">{"@type":"A"}</script><!-- x -->`, 1},
+		{"quote in unquoted attribute", `<script data-x=it's>var a;</script><script type="application/ld+json">{"@type":"A"}</script>`, 1},
 	}
 	for _, c := range cases {
 		if got := len(scanBlocks(t, c.body)); got != c.want {

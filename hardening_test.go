@@ -315,3 +315,100 @@ func TestFieldIs16Bit(t *testing.T) {
 		t.Fatal("Field must hold 16 bits")
 	}
 }
+
+func TestFetchDoesNotWaitForSlowBodyAfterHead(t *testing.T) {
+	for _, head := range []string{
+		`<html><head><title>T</title></head><body>`, // smaller than the charset sniff window
+		`<html><head><title>T</title><meta name="x" content="` + strings.Repeat("a", 3000) + `"></head><body>`,
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, head)
+			w.(http.Flusher).Flush()
+			select { // a body that does not finish in time
+			case <-time.After(5 * time.Second):
+			case <-r.Context().Done():
+			}
+		}))
+		start := time.Now()
+		link, err := NewClient().Fetch(context.Background(), srv.URL, PreviewFields)
+		elapsed := time.Since(start)
+		srv.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if link.Title != "T" || elapsed > 2*time.Second {
+			t.Fatalf("head %d bytes: title=%q elapsed=%s", len(head), link.Title, elapsed)
+		}
+	}
+}
+
+func TestCharsetLatin1FromMetaTag(t *testing.T) {
+	body, _ := charmap.ISO8859_1.NewEncoder().String(`<html><head><meta charset="iso-8859-1"><title>Café</title></head></html>`)
+	for _, mask := range []Field{MetadataFields, AllFields} {
+		srv := serveHTML(t, "text/html", body)
+		link, err := Fetch(context.Background(), srv.URL, mask)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if link.Title != "Café" {
+			t.Errorf("mask %d: Title = %q", mask, link.Title)
+		}
+	}
+}
+
+func TestStrayElementInHeadSameForAllMasks(t *testing.T) {
+	// html.Parse would move the <meta> after <my-el> into <body>.
+	doc := `<html><head><title>T</title><my-el></my-el><meta property="og:title" content="OG"><meta property="og:image" content="/i.png"></head><body></body></html>`
+	for _, mask := range []Field{MetadataFields, RichFields, AllFields} {
+		link, err := Parse(strings.NewReader(doc), "https://example.com/", mask)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if link.OpenGraph["og:title"] != "OG" || link.Image != "https://example.com/i.png" {
+			t.Errorf("mask %d: og=%v image=%q", mask, link.OpenGraph, link.Image)
+		}
+	}
+}
+
+func TestOddBodyScriptTagDoesNotFailFetch(t *testing.T) {
+	doc := `<html><head><title>T</title></head><body><script data-x=it's>var a = 1;</script>` +
+		strings.Repeat("x", 20000) + `<script type="application/ld+json">{"@type":"Article"}</script></body></html>`
+	for _, mask := range []Field{RichFields, AllFields} {
+		link, err := Parse(strings.NewReader(doc), "https://example.com/", mask)
+		if err != nil {
+			t.Fatalf("mask %d: %v", mask, err)
+		}
+		if link.Title != "T" || link.ContentType != "Article" {
+			t.Errorf("mask %d: title=%q type=%q", mask, link.Title, link.ContentType)
+		}
+	}
+}
+
+func TestNAT64ChecksEmbeddedIPv4(t *testing.T) {
+	if !IsPublicAddr(netip.MustParseAddr("64:ff9b::808:808")) { // 8.8.8.8
+		t.Error("NAT64 address of a public IPv4 should be public")
+	}
+	if IsPublicAddr(netip.MustParseAddr("64:ff9b::7f00:1")) { // 127.0.0.1
+		t.Error("NAT64 address of loopback should not be public")
+	}
+}
+
+func TestLongRedirectTargetFollowed(t *testing.T) {
+	long := "/landing?" + strings.Repeat("q=1&", 700)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			http.Redirect(w, r, long, http.StatusFound)
+			return
+		}
+		fmt.Fprint(w, "<title>landed</title>")
+	}))
+	defer srv.Close()
+	link, err := NewClient().Fetch(context.Background(), srv.URL+"/start", MetadataFields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if link.Title != "landed" {
+		t.Fatalf("Title = %q", link.Title)
+	}
+}
