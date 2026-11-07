@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	defaultBodyLimit  int64 = 64 * 1024 // 64 KB
-	defaultMaxBulkURLs      = 100
+	defaultBodyLimit   int64 = 64 * 1024 // 64 KB
+	defaultMaxBulkURLs       = 100
 )
 
 // Handler is an http.Handler that delegates to a metagrab.Client.
@@ -94,7 +94,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // ---------- request/response types ----------
 
 type fetchRequest struct {
-	URL    string       `json:"url"`
+	URL    string         `json:"url"`
 	Fields metagrab.Field `json:"fields"`
 }
 

@@ -49,10 +49,10 @@ const (
 	CanonicalField                     // 64
 	JSONLDField                        // 128
 
-	MetadataFields = TitleField | URLField | MetaField | DescriptionField                          // 15
-	PreviewFields  = MetadataFields | FaviconField | CanonicalField                                // 111
-	RichFields     = PreviewFields | JSONLDField                                                    // 239
-	AllFields      = RichFields | ContentField                                                      // 255
+	MetadataFields = TitleField | URLField | MetaField | DescriptionField // 15
+	PreviewFields  = MetadataFields | FaviconField | CanonicalField       // 111
+	RichFields     = PreviewFields | JSONLDField                          // 239
+	AllFields      = RichFields | ContentField                            // 255
 )
 
 // Has reports whether f contains the flag x.
@@ -253,11 +253,9 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 		if !isRetryableStatus(resp.StatusCode) || attempt >= c.maxRetries {
 			break
 		}
-		delay := c.retryDelay
+		delay := c.retryDelay * time.Duration(1<<attempt)
 		if d, ok := parseRetryAfter(resp.Header.Get("Retry-After")); ok {
 			delay = d
-		} else {
-			delay = c.retryDelay * time.Duration(1<<attempt)
 		}
 		resp.Body.Close()
 		if err := sleepWithContext(ctx, delay); err != nil {

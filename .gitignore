@@ -3,3 +3,8 @@ metagrab
 .DS_Store
 out.json
 timings.csv
+
+# Build output
+/dist/
+examples/lambda/bootstrap
+examples/lambda/lambda
