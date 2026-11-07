@@ -10,6 +10,7 @@ package httphandler
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -81,7 +82,9 @@ func New(client *metagrab.Client, opts ...HandlerOption) *Handler {
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if h.apiKey != "" && !h.checkAuth(r) {
+	// /health stays open so load balancers and uptime checks work
+	// without the key. It reveals nothing beyond "the process is up".
+	if h.apiKey != "" && r.URL.Path != "/health" && !h.checkAuth(r) {
 		writeJSON(w, http.StatusUnauthorized, errorResponse{
 			Code:    "unauthorized",
 			Message: "missing or invalid X-API-Key",
@@ -138,8 +141,8 @@ func (h *Handler) handleFetch(w http.ResponseWriter, r *http.Request) {
 
 	link, err := h.client.Fetch(r.Context(), req.URL, mask)
 	if err != nil {
-		fe, ok := err.(*metagrab.FetchError)
-		if ok {
+		var fe *metagrab.FetchError
+		if errors.As(err, &fe) {
 			writeJSON(w, httpStatusForError(fe), fe)
 		} else {
 			writeJSON(w, http.StatusInternalServerError, errorResponse{
@@ -216,6 +219,7 @@ func (h *Handler) readJSON(r *http.Request, dst any) error {
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
@@ -226,12 +230,12 @@ func httpStatusForError(fe *metagrab.FetchError) int {
 		return http.StatusBadRequest
 	case metagrab.ErrorCodeCanceled, metagrab.ErrorCodeDeadlineExceeded:
 		return http.StatusGatewayTimeout
-	case metagrab.ErrorCodeHTTPStatus:
-		if fe.StatusCode > 0 {
-			return fe.StatusCode
-		}
-		return http.StatusBadGateway
+	case metagrab.ErrorCodeContentType:
+		return http.StatusUnprocessableEntity
 	default:
+		// Upstream failures (including non-2xx upstream statuses) map to
+		// 502. The upstream status stays in the body as status_code, so a
+		// 401 or 404 from the target is never confused with this API's own.
 		return http.StatusBadGateway
 	}
 }

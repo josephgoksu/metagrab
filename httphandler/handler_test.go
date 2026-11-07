@@ -3,8 +3,10 @@ package httphandler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,30 +39,59 @@ func TestHealth(t *testing.T) {
 func TestAuthRejection(t *testing.T) {
 	h := newTestHandler("secret-key")
 
-	// No key
+	do := func(key string) int {
+		req := httptest.NewRequest(http.MethodPost, "/fetch", strings.NewReader(`{}`))
+		if key != "" {
+			req.Header.Set("X-API-Key", key)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	if code := do(""); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without key, got %d", code)
+	}
+	if code := do("wrong-key"); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with wrong key, got %d", code)
+	}
+	// Correct key passes auth; the empty body then fails validation.
+	if code := do("secret-key"); code != http.StatusBadRequest {
+		t.Fatalf("expected 400 with correct key, got %d", code)
+	}
+}
+
+func TestHealthSkipsAuth(t *testing.T) {
+	h := newTestHandler("secret-key")
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 without key, got %d", rec.Code)
-	}
-
-	// Wrong key
-	req = httptest.NewRequest(http.MethodGet, "/health", nil)
-	req.Header.Set("X-API-Key", "wrong-key")
-	rec = httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 with wrong key, got %d", rec.Code)
-	}
-
-	// Correct key
-	req = httptest.NewRequest(http.MethodGet, "/health", nil)
-	req.Header.Set("X-API-Key", "secret-key")
-	rec = httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 with correct key, got %d", rec.Code)
+		t.Fatalf("expected /health to be open, got %d", rec.Code)
+	}
+}
+
+func TestUpstreamStatusMapsTo502(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusUnauthorized)
+	}))
+	defer upstream.Close()
+
+	h := newTestHandler("")
+	body := fmt.Sprintf(`{"url":%q}`, upstream.URL)
+	req := httptest.NewRequest(http.MethodPost, "/fetch", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", rec.Code)
+	}
+	var fe metagrab.FetchError
+	if err := json.Unmarshal(rec.Body.Bytes(), &fe); err != nil {
+		t.Fatal(err)
+	}
+	if fe.Code != metagrab.ErrorCodeHTTPStatus || fe.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("body = %+v, want http_status_error with status_code 401", fe)
 	}
 }
 

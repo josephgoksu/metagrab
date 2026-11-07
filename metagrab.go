@@ -1,6 +1,7 @@
 package metagrab
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -8,13 +9,16 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -28,6 +32,7 @@ type Link struct {
 	Content      string            `json:"content,omitempty"`
 	Favicon      string            `json:"favicon,omitempty"`
 	CanonicalURL string            `json:"canonical_url,omitempty"`
+	Image        string            `json:"image,omitempty"`
 	SiteName     string            `json:"site_name,omitempty"`
 	Author       string            `json:"author,omitempty"`
 	PublishedAt  string            `json:"published_at,omitempty"`
@@ -37,7 +42,9 @@ type Link struct {
 }
 
 // Field is a bitmask for selecting which metadata to extract.
-type Field uint8
+//
+// Field is 16 bits wide; bits 8-15 are reserved for future fields.
+type Field uint16
 
 const (
 	TitleField       Field = 1 << iota // 1
@@ -128,15 +135,20 @@ type BulkResult struct {
 type URLPolicy func(*url.URL) error
 
 const (
-	defaultTimeout     = 10 * time.Second
-	defaultUserAgent   = "metagrab/2.0 (+https://github.com/josephgoksu/metagrab)"
-	defaultMaxBodySize = 2 * 1024 * 1024 // 2 MB
-	defaultConcurrency = 10
-	defaultMaxURLLen   = 2048
-	defaultRetryDelay  = 250 * time.Millisecond
+	defaultTimeout      = 10 * time.Second
+	defaultUserAgent    = "metagrab/1 (+https://github.com/josephgoksu/metagrab)"
+	defaultMaxBodySize  = 2 * 1024 * 1024 // 2 MB
+	defaultConcurrency  = 10
+	defaultMaxURLLen    = 2048
+	defaultRetryDelay   = 250 * time.Millisecond
+	defaultMaxRetryWait = 30 * time.Second
+	defaultMaxRedirects = 5
 )
 
-var errBodyTooLarge = errors.New("response body exceeds configured limit")
+var (
+	errBodyTooLarge   = errors.New("response body exceeds configured limit")
+	errRedirectDenied = errors.New("redirect rejected")
+)
 
 // Client fetches and parses HTML metadata.
 type Client struct {
@@ -148,6 +160,10 @@ type Client struct {
 	urlPolicy   URLPolicy
 	maxRetries  int
 	retryDelay  time.Duration
+
+	maxRetryWait time.Duration
+	maxRedirects int
+	denyPrivate  bool
 }
 
 // NewClient creates a Client with the given options applied.
@@ -158,6 +174,9 @@ func NewClient(opts ...Option) *Client {
 		concurrency: defaultConcurrency,
 		timeout:     defaultTimeout,
 		retryDelay:  defaultRetryDelay,
+
+		maxRetryWait: defaultMaxRetryWait,
+		maxRedirects: defaultMaxRedirects,
 	}
 
 	for _, o := range opts {
@@ -180,18 +199,61 @@ func NewClient(opts ...Option) *Client {
 		c.retryDelay = defaultRetryDelay
 	}
 
+	if c.maxRetryWait <= 0 {
+		c.maxRetryWait = defaultMaxRetryWait
+	}
+
 	if c.httpClient == nil {
-		c.httpClient = &http.Client{
-			Timeout: c.timeout,
-			Transport: &http.Transport{
-				MaxIdleConns:        256,
-				MaxIdleConnsPerHost: 64,
-				IdleConnTimeout:     90 * time.Second,
-			},
-		}
+		c.httpClient = c.newHTTPClient()
 	}
 
 	return c
+}
+
+func (c *Client) newHTTPClient() *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          256,
+		MaxIdleConnsPerHost:   64,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	if c.denyPrivate {
+		dialer.Control = dialControlDenyPrivate
+		// Through a proxy the dialer would only see the proxy's address,
+		// which silently disables the check.
+		transport.Proxy = nil
+	}
+	transport.DialContext = dialer.DialContext
+	return &http.Client{
+		Timeout:       c.timeout,
+		Transport:     transport,
+		CheckRedirect: c.checkRedirect,
+	}
+}
+
+// checkRedirect applies the redirect limit, the scheme rules and the URL
+// policy to every redirect target.
+func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) > c.maxRedirects {
+		// Hand the last 3xx back to the caller instead of following it.
+		return http.ErrUseLastResponse
+	}
+	if _, err := validateURL(req.URL.String()); err != nil {
+		return fmt.Errorf("%w: %v", errRedirectDenied, err)
+	}
+	if c.urlPolicy != nil {
+		if err := c.urlPolicy(req.URL); err != nil {
+			return fmt.Errorf("%w: %v", errRedirectDenied, err)
+		}
+	}
+	return nil
 }
 
 // Package-level singleton.
@@ -248,16 +310,17 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
-			return nil, classifyContextOrNetworkError(parsedURL.String(), "request failed", err)
+			return nil, classifyRequestError(parsedURL.String(), err)
 		}
 		if !isRetryableStatus(resp.StatusCode) || attempt >= c.maxRetries {
 			break
 		}
-		delay := c.retryDelay * time.Duration(1<<attempt)
+		delay := c.retryDelay * time.Duration(1<<min(attempt, 16))
 		if d, ok := parseRetryAfter(resp.Header.Get("Retry-After")); ok {
 			delay = d
 		}
-		resp.Body.Close()
+		delay = min(delay, c.maxRetryWait)
+		_ = resp.Body.Close()
 		if err := sleepWithContext(ctx, delay); err != nil {
 			return nil, classifyContextOrNetworkError(parsedURL.String(), "retry wait interrupted", err)
 		}
@@ -273,37 +336,43 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 		}
 	}
 
-	if err := validateContentType(resp.Header.Get("Content-Type")); err != nil {
+	contentType := resp.Header.Get("Content-Type")
+	if err := validateContentType(contentType); err != nil {
 		return nil, newFetchError(ErrorCodeContentType, parsedURL.String(), "unsupported content type", err)
 	}
 
+	// Relative URLs (canonical, favicon, image) resolve against the final
+	// URL after redirects, not the requested one.
+	baseURL := parsedURL.String()
+	if resp.Request != nil && resp.Request.URL != nil {
+		baseURL = resp.Request.URL.String()
+	}
+
 	if mask.Has(ContentField) {
-		bodyBytes, err := readBodyWithLimit(resp.Body, c.maxBodySize)
+		rawBytes, err := readBodyWithLimit(resp.Body, c.maxBodySize)
 		if err != nil {
 			if errors.Is(err, errBodyTooLarge) {
 				return nil, newFetchError(ErrorCodeBodyTooLarge, parsedURL.String(), "response body exceeded max size", err)
 			}
 			return nil, classifyContextOrReadError(parsedURL.String(), "failed to read response body", err)
 		}
+		bodyBytes := decodeToUTF8(rawBytes, contentType)
 
 		doc, err := html.Parse(bytes.NewReader(bodyBytes))
 		if err != nil {
 			return nil, newFetchError(ErrorCodeParseHTML, parsedURL.String(), "failed to parse HTML", err)
 		}
-		c.extractMetadata(doc, link, mask)
+		extractMetadata(doc, link, baseURL, mask)
 		link.Content = string(bodyBytes)
 	} else {
-		if err := c.extractMetadataFromHead(resp.Body, link, mask); err != nil {
-			return nil, newFetchError(ErrorCodeParseHTML, parsedURL.String(), "failed to parse HTML head", err)
+		r := utf8Reader(io.LimitReader(resp.Body, c.maxBodySize), contentType)
+		if err := extractMetadataFromHead(r, link, baseURL, mask); err != nil {
+			return nil, classifyContextOrReadError(parsedURL.String(), "failed to read HTML head", err)
 		}
 	}
 
-	if mask.Has(TitleField) && link.Title == "" {
-		link.Title = parsedURL.Hostname()
-	}
-
 	if mask.Has(FaviconField) && link.Favicon == "" {
-		link.Favicon = parsedURL.Scheme + "://" + parsedURL.Host + "/favicon.ico"
+		link.Favicon = resolveURL(baseURL, "/favicon.ico")
 	}
 
 	if mask.Has(MetaField) {
@@ -316,8 +385,16 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 				if data.AuthorName != "" && link.SiteName == "" {
 					link.SiteName = data.AuthorName
 				}
+				if link.Image == "" && data.ThumbnailURL != "" {
+					link.Image = data.ThumbnailURL
+				}
 			}
 		}
+	}
+
+	// The hostname fallback runs last so an oEmbed title can fill the gap.
+	if mask.Has(TitleField) && link.Title == "" {
+		link.Title = parsedURL.Hostname()
 	}
 
 	return link, nil
@@ -336,7 +413,6 @@ func (c *Client) FetchBulk(ctx context.Context, urls []string, mask Field) ([]*L
 	g.SetLimit(c.concurrency)
 
 	for i, rawURL := range urls {
-		i, rawURL := i, rawURL
 		g.Go(func() error {
 			link, err := c.Fetch(gctx, rawURL, mask)
 			if err != nil {
@@ -368,7 +444,6 @@ func (c *Client) FetchBulkResults(ctx context.Context, urls []string, mask Field
 	g.SetLimit(c.concurrency)
 
 	for i, rawURL := range urls {
-		i, rawURL := i, rawURL
 		g.Go(func() error {
 			link, err := c.Fetch(gctx, rawURL, mask)
 			if err != nil {
@@ -384,135 +459,172 @@ func (c *Client) FetchBulkResults(ctx context.Context, urls []string, mask Field
 	return results
 }
 
-func (c *Client) extractMetadata(n *html.Node, link *Link, mask Field) {
-	if n == nil {
-		return
-	}
+// extractor accumulates metadata from either the DOM walker or the
+// streaming head tokenizer, so both paths apply identical rules.
+type extractor struct {
+	link        *Link
+	base        string
+	mask        Field
+	bestFav     faviconCandidate
+	jsonLDCount int
+}
 
-	var bestFav faviconCandidate
-	var jsonLDCount int
-
-	var walk func(*html.Node)
-	walk = func(node *html.Node) {
-		if node.Type == html.ElementNode {
-			switch node.Data {
-			case "title":
-				if mask.Has(TitleField) && link.Title == "" {
-					link.Title = textContent(node)
-				}
-			case "meta":
-				c.processMeta(node, link, mask)
-			case "link":
-				c.processLink(node, link, mask, &bestFav)
-			case "script":
-				if mask.Has(JSONLDField) && jsonLDCount < maxJSONLDBlocks {
-					jsonLDCount += c.processScript(node, link)
-				}
-			case "body":
-				// JSON-LD can appear in body, so only skip body traversal when we don't need it.
-				if !mask.Has(JSONLDField) {
-					return
-				}
-			}
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(n)
-
-	if bestFav.href != "" {
-		link.Favicon = bestFav.href
-	}
-	if mask.Has(JSONLDField) && len(link.JSONLD) > 0 && link.ContentType == "" {
-		link.ContentType = extractContentType(link.JSONLD)
+func (e *extractor) title(text string) {
+	if e.mask.Has(TitleField) && e.link.Title == "" {
+		e.link.Title = collapseSpace(text)
 	}
 }
 
-func (c *Client) processLink(node *html.Node, link *Link, mask Field, bestFav *faviconCandidate) {
-	var rel, href, sizes string
-	for _, a := range node.Attr {
-		switch strings.ToLower(a.Key) {
-		case "rel":
-			rel = a.Val
-		case "href":
-			href = a.Val
-		case "sizes":
-			sizes = a.Val
-		}
-	}
+func (e *extractor) linkTag(rel, href, sizes string) {
+	href = strings.TrimSpace(href)
 	if href == "" {
 		return
 	}
+	tokens := strings.Fields(strings.ToLower(rel))
 
-	lowerRel := strings.ToLower(strings.TrimSpace(rel))
-
-	if mask.Has(CanonicalField) && lowerRel == "canonical" && link.CanonicalURL == "" {
-		link.CanonicalURL = resolveURL(link.URL, href)
+	if e.mask.Has(CanonicalField) && e.link.CanonicalURL == "" && hasToken(tokens, "canonical") {
+		e.link.CanonicalURL = resolveURL(e.base, href)
 	}
 
-	if mask.Has(FaviconField) {
-		prio := faviconPriority(rel)
-		if prio > 0 {
-			resolved := resolveURL(link.URL, href)
-			cand := faviconCandidate{href: resolved, priority: prio, size: parseSizes(sizes)}
-			if cand.betterThan(*bestFav) {
-				*bestFav = cand
+	if e.mask.Has(FaviconField) {
+		if prio := faviconPriority(tokens); prio > 0 {
+			cand := faviconCandidate{href: resolveURL(e.base, href), priority: prio, size: parseSizes(sizes)}
+			if cand.betterThan(e.bestFav) {
+				e.bestFav = cand
 			}
 		}
 	}
 }
 
-func (c *Client) processScript(node *html.Node, link *Link) int {
-	isLDJSON := false
-	for _, a := range node.Attr {
-		if strings.ToLower(a.Key) == "type" && strings.ToLower(strings.TrimSpace(a.Val)) == "application/ld+json" {
-			isLDJSON = true
-			break
-		}
-	}
-	if !isLDJSON {
-		return 0
-	}
-
-	raw := textContent(node)
-	blocks := parseJSONLDAll(raw)
-	if len(blocks) == 0 {
-		return 0
-	}
-	link.JSONLD = append(link.JSONLD, blocks...)
-	return len(blocks)
+// wantJSONLD reports whether more JSON-LD blocks should be collected.
+func (e *extractor) wantJSONLD() bool {
+	return e.mask.Has(JSONLDField) && e.jsonLDCount < maxJSONLDBlocks
 }
 
-func (c *Client) processMeta(node *html.Node, link *Link, mask Field) {
-	var name, property, content string
-	for _, a := range node.Attr {
-		k := strings.ToLower(a.Key)
-		switch k {
-		case "name":
-			name = a.Val
-		case "property":
-			property = a.Val
-		case "content":
-			content = a.Val
+func (e *extractor) jsonLD(raw string) {
+	blocks := parseJSONLDAll(raw)
+	if len(blocks) == 0 {
+		return
+	}
+	if room := maxJSONLDBlocks - e.jsonLDCount; len(blocks) > room {
+		blocks = blocks[:room]
+	}
+	e.link.JSONLD = append(e.link.JSONLD, blocks...)
+	e.jsonLDCount += len(blocks)
+}
+
+func (e *extractor) finish() {
+	link := e.link
+	if e.bestFav.href != "" {
+		link.Favicon = e.bestFav.href
+	}
+	if e.mask.Has(JSONLDField) && len(link.JSONLD) > 0 && link.ContentType == "" {
+		link.ContentType = extractContentType(link.JSONLD)
+	}
+	if e.mask.Has(MetaField) && link.Image == "" {
+		for _, v := range []string{
+			link.OpenGraph["og:image"],
+			link.OpenGraph["og:image:secure_url"],
+			link.OpenGraph["og:image:url"],
+			link.Twitter["twitter:image"],
+			link.Twitter["twitter:image:src"],
+		} {
+			if v = strings.TrimSpace(v); v != "" {
+				link.Image = resolveURL(e.base, v)
+				break
+			}
 		}
 	}
+}
+
+func isLDJSONType(v string) bool {
+	return strings.EqualFold(strings.TrimSpace(v), "application/ld+json")
+}
+
+// extractMetadata walks a parsed document. Only <script> elements are read
+// inside <body>, and only when JSON-LD is requested.
+func extractMetadata(doc *html.Node, link *Link, base string, mask Field) {
+	if doc == nil {
+		return
+	}
+	e := &extractor{link: link, base: base, mask: mask}
+
+	var walk func(node *html.Node, inBody bool)
+	walk = func(node *html.Node, inBody bool) {
+		if node.Type == html.ElementNode {
+			switch node.Data {
+			case "body":
+				if !mask.Has(JSONLDField) {
+					return
+				}
+				inBody = true
+			case "title":
+				if !inBody {
+					e.title(textContent(node))
+				}
+			case "meta":
+				if !inBody {
+					var name, property, content string
+					for _, a := range node.Attr {
+						switch strings.ToLower(a.Key) {
+						case "name":
+							name = a.Val
+						case "property":
+							property = a.Val
+						case "content":
+							content = a.Val
+						}
+					}
+					applyMetaTag(name, property, content, link, mask)
+				}
+			case "link":
+				if !inBody {
+					var rel, href, sizes string
+					for _, a := range node.Attr {
+						switch strings.ToLower(a.Key) {
+						case "rel":
+							rel = a.Val
+						case "href":
+							href = a.Val
+						case "sizes":
+							sizes = a.Val
+						}
+					}
+					e.linkTag(rel, href, sizes)
+				}
+			case "script":
+				if e.wantJSONLD() {
+					for _, a := range node.Attr {
+						if strings.ToLower(a.Key) == "type" && isLDJSONType(a.Val) {
+							e.jsonLD(textContent(node))
+							break
+						}
+					}
+				}
+				return
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child, inBody)
+		}
+	}
+	walk(doc, false)
+	e.finish()
+}
+
+func applyMetaTag(name, property, content string, link *Link, mask Field) {
+	content = strings.TrimSpace(content)
 	if content == "" {
 		return
 	}
-	c.applyMetaTag(name, property, content, link, mask)
-}
-
-func (c *Client) applyMetaTag(name, property, content string, link *Link, mask Field) {
 	key := property
 	if key == "" {
 		key = name
 	}
-	if key == "" {
+	lowerKey := strings.ToLower(strings.TrimSpace(key))
+	if lowerKey == "" {
 		return
 	}
-
-	lowerKey := strings.ToLower(key)
 
 	if mask.Has(DescriptionField) && lowerKey == "description" && link.Description == "" {
 		link.Description = content
@@ -529,7 +641,11 @@ func (c *Client) applyMetaTag(name, property, content string, link *Link, mask F
 			if link.OpenGraph == nil {
 				link.OpenGraph = make(map[string]string)
 			}
-			link.OpenGraph[lowerKey] = content
+			if _, seen := link.OpenGraph[lowerKey]; !seen {
+				// Keep the first value: for repeated tags such as og:image,
+				// the first one is the primary.
+				link.OpenGraph[lowerKey] = content
+			}
 
 			if lowerKey == "og:site_name" && link.SiteName == "" {
 				link.SiteName = content
@@ -541,7 +657,9 @@ func (c *Client) applyMetaTag(name, property, content string, link *Link, mask F
 		if link.OpenGraph == nil {
 			link.OpenGraph = make(map[string]string)
 		}
-		link.OpenGraph[lowerKey] = content
+		if _, seen := link.OpenGraph[lowerKey]; !seen {
+			link.OpenGraph[lowerKey] = content
+		}
 
 		switch lowerKey {
 		case "article:author":
@@ -559,7 +677,9 @@ func (c *Client) applyMetaTag(name, property, content string, link *Link, mask F
 		if link.Twitter == nil {
 			link.Twitter = make(map[string]string)
 		}
-		link.Twitter[lowerKey] = content
+		if _, seen := link.Twitter[lowerKey]; !seen {
+			link.Twitter[lowerKey] = content
+		}
 	}
 
 	// Standard meta name fallbacks for author and date.
@@ -577,13 +697,32 @@ func (c *Client) applyMetaTag(name, property, content string, link *Link, mask F
 	}
 }
 
-func (c *Client) extractMetadataFromHead(r io.Reader, link *Link, mask Field) error {
-	limited := io.LimitReader(r, c.maxBodySize)
-	z := html.NewTokenizer(limited)
+// extractMetadataFromHead streams the document with a tokenizer and stops at
+// <body> (or </head>), unless JSON-LD is requested, in which case it keeps
+// reading <script> elements in the body. r must already be size-limited.
+func extractMetadataFromHead(r io.Reader, link *Link, base string, mask Field) error {
+	z := html.NewTokenizer(r)
+	e := &extractor{link: link, base: base, mask: mask}
+	inBody := false
 
-	var bestFav faviconCandidate
-	var jsonLDCount int
+	attrs := func(hasAttr bool, keys ...string) map[string]string {
+		out := make(map[string]string, len(keys))
+		for hasAttr {
+			k, v, more := z.TagAttr()
+			key := strings.ToLower(string(k))
+			for _, want := range keys {
+				if key == want {
+					if _, dup := out[key]; !dup {
+						out[key] = string(v)
+					}
+				}
+			}
+			hasAttr = more
+		}
+		return out
+	}
 
+loop:
 	for {
 		tt := z.Next()
 		switch tt {
@@ -591,117 +730,105 @@ func (c *Client) extractMetadataFromHead(r io.Reader, link *Link, mask Field) er
 			if err := z.Err(); err != nil && !errors.Is(err, io.EOF) {
 				return err
 			}
-			goto done
+			break loop
 		case html.StartTagToken, html.SelfClosingTagToken:
 			name, hasAttr := z.TagName()
-			tag := strings.ToLower(string(name))
+			tag := string(name) // the tokenizer lower-cases tag names
+
+			if tag == "body" {
+				if !mask.Has(JSONLDField) {
+					break loop
+				}
+				inBody = true
+				continue
+			}
+			if inBody && tag != "script" {
+				continue
+			}
 
 			switch tag {
-			case "body":
-				goto done
 			case "title":
-				if mask.Has(TitleField) && link.Title == "" {
-					if z.Next() == html.TextToken {
-						link.Title = strings.TrimSpace(string(z.Text()))
+				if tt == html.StartTagToken {
+					var sb strings.Builder
+					for z.Next() == html.TextToken {
+						sb.Write(z.Text())
 					}
+					e.title(sb.String())
 				}
 			case "meta":
-				var metaName, metaProperty, metaContent string
-				for hasAttr {
-					k, v, more := z.TagAttr()
-					key := strings.ToLower(string(k))
-					val := string(v)
-					switch key {
-					case "name":
-						metaName = val
-					case "property":
-						metaProperty = val
-					case "content":
-						metaContent = val
-					}
-					hasAttr = more
-				}
-				if metaContent != "" {
-					c.applyMetaTag(metaName, metaProperty, metaContent, link, mask)
-				}
+				a := attrs(hasAttr, "name", "property", "content")
+				applyMetaTag(a["name"], a["property"], a["content"], link, mask)
 			case "link":
-				var rel, href, sizes string
-				for hasAttr {
-					k, v, more := z.TagAttr()
-					key := strings.ToLower(string(k))
-					val := string(v)
-					switch key {
-					case "rel":
-						rel = val
-					case "href":
-						href = val
-					case "sizes":
-						sizes = val
-					}
-					hasAttr = more
-				}
-				if href != "" {
-					lowerRel := strings.ToLower(strings.TrimSpace(rel))
-					if mask.Has(CanonicalField) && lowerRel == "canonical" && link.CanonicalURL == "" {
-						link.CanonicalURL = resolveURL(link.URL, href)
-					}
-					if mask.Has(FaviconField) {
-						prio := faviconPriority(rel)
-						if prio > 0 {
-							resolved := resolveURL(link.URL, href)
-							cand := faviconCandidate{href: resolved, priority: prio, size: parseSizes(sizes)}
-							if cand.betterThan(bestFav) {
-								bestFav = cand
-							}
-						}
-					}
-				}
+				a := attrs(hasAttr, "rel", "href", "sizes")
+				e.linkTag(a["rel"], a["href"], a["sizes"])
 			case "script":
-				if mask.Has(JSONLDField) && jsonLDCount < maxJSONLDBlocks {
-					var isLDJSON bool
-					for hasAttr {
-						k, v, more := z.TagAttr()
-						if strings.ToLower(string(k)) == "type" && strings.ToLower(strings.TrimSpace(string(v))) == "application/ld+json" {
-							isLDJSON = true
-						}
-						hasAttr = more
+				if !e.wantJSONLD() {
+					if inBody {
+						break loop // nothing left to collect
 					}
-					if isLDJSON {
-						// Read text content until </script>.
-						var sb strings.Builder
-						for {
-							next := z.Next()
-							if next == html.ErrorToken || next == html.EndTagToken {
-								break
-							}
-							if next == html.TextToken {
-								sb.Write(z.Text())
-							}
-						}
-						blocks := parseJSONLDAll(sb.String())
-						if len(blocks) > 0 {
-							link.JSONLD = append(link.JSONLD, blocks...)
-							jsonLDCount += len(blocks)
-						}
-					}
+					continue
 				}
+				a := attrs(hasAttr, "type")
+				if !isLDJSONType(a["type"]) || tt != html.StartTagToken {
+					continue
+				}
+				var sb strings.Builder
+				for z.Next() == html.TextToken {
+					sb.Write(z.Text())
+				}
+				e.jsonLD(sb.String())
 			}
 		case html.EndTagToken:
 			name, _ := z.TagName()
-			if strings.EqualFold(string(name), "head") {
-				goto done
+			if string(name) == "head" && !mask.Has(JSONLDField) {
+				break loop
 			}
 		}
 	}
 
-done:
-	if bestFav.href != "" {
-		link.Favicon = bestFav.href
-	}
-	if mask.Has(JSONLDField) && len(link.JSONLD) > 0 && link.ContentType == "" {
-		link.ContentType = extractContentType(link.JSONLD)
-	}
+	e.finish()
 	return nil
+}
+
+func hasToken(tokens []string, want string) bool {
+	for _, t := range tokens {
+		if t == want {
+			return true
+		}
+	}
+	return false
+}
+
+func collapseSpace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// utf8Reader wraps r so it yields UTF-8. The encoding comes from a BOM,
+// the Content-Type charset, or a <meta charset> in the first 1024 bytes.
+// Without any declaration the body is assumed to be UTF-8, the default for
+// the modern web (x/net/html/charset would guess windows-1252, which garbles
+// undeclared UTF-8 pages).
+func utf8Reader(r io.Reader, contentType string) io.Reader {
+	br := bufio.NewReaderSize(r, 4096)
+	head, _ := br.Peek(1024)
+	enc, name, certain := charset.DetermineEncoding(head, contentType)
+	if name == "utf-8" || (!certain && name == "windows-1252") {
+		return br
+	}
+	return enc.NewDecoder().Reader(br)
+}
+
+// decodeToUTF8 converts a full body to UTF-8 (same rules as utf8Reader).
+func decodeToUTF8(raw []byte, contentType string) []byte {
+	enc, name, certain := charset.DetermineEncoding(raw, contentType)
+	if name == "utf-8" || (!certain && utf8.Valid(raw)) {
+		return raw
+	}
+	out, err := enc.NewDecoder().Bytes(raw)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 // resolveURL resolves ref against base. Returns ref unchanged if parsing fails.
@@ -720,35 +847,34 @@ func resolveURL(base, ref string) string {
 	return b.ResolveReference(r).String()
 }
 
-// faviconPriority scores a link rel value for favicon preference.
-func faviconPriority(rel string) int {
-	switch strings.ToLower(strings.TrimSpace(rel)) {
-	case "apple-touch-icon", "apple-touch-icon-precomposed":
+// faviconPriority scores lower-cased rel tokens for favicon preference.
+func faviconPriority(tokens []string) int {
+	switch {
+	case hasToken(tokens, "apple-touch-icon"), hasToken(tokens, "apple-touch-icon-precomposed"):
 		return 3
-	case "icon":
-		return 2
-	case "shortcut icon":
+	case hasToken(tokens, "icon") && hasToken(tokens, "shortcut"):
 		return 1
+	case hasToken(tokens, "icon"):
+		return 2
 	default:
 		return 0
 	}
 }
 
-// parseSizes extracts the width from a sizes attribute like "180x180".
+// parseSizes returns the largest width in a sizes attribute such as
+// "180x180" or "16x16 32x32". "any" and malformed values return 0.
 func parseSizes(sizes string) int {
-	sizes = strings.TrimSpace(sizes)
-	if sizes == "" || strings.EqualFold(sizes, "any") {
-		return 0
+	best := 0
+	for _, s := range strings.Fields(strings.ToLower(sizes)) {
+		w, _, ok := strings.Cut(s, "x")
+		if !ok {
+			continue
+		}
+		if n, err := strconv.Atoi(w); err == nil && n > best {
+			best = n
+		}
 	}
-	parts := strings.SplitN(strings.ToLower(sizes), "x", 2)
-	if len(parts) != 2 {
-		return 0
-	}
-	w, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0
-	}
-	return w
+	return best
 }
 
 type faviconCandidate struct {
@@ -934,6 +1060,18 @@ func classifyContextOrNetworkError(rawURL, message string, err error) *FetchErro
 		return newFetchError(ErrorCodeDeadlineExceeded, rawURL, message, err)
 	default:
 		return newFetchError(ErrorCodeNetwork, rawURL, message, err)
+	}
+}
+
+// classifyRequestError maps an error from http.Client.Do to a FetchError.
+func classifyRequestError(rawURL string, err error) *FetchError {
+	switch {
+	case errors.Is(err, errRedirectDenied):
+		return newFetchError(ErrorCodeURLDenied, rawURL, "redirect rejected", err)
+	case errors.Is(err, ErrPrivateAddress):
+		return newFetchError(ErrorCodeURLDenied, rawURL, "address rejected by private network policy", err)
+	default:
+		return classifyContextOrNetworkError(rawURL, "request failed", err)
 	}
 }
 
