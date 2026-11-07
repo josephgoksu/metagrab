@@ -1,5 +1,8 @@
 grabber
-metagrab
+# Binaries from `go build` at the root or in cmd/metagrab. Anchored, so the
+# cmd/metagrab source directory itself is not ignored.
+/metagrab
+/cmd/metagrab/metagrab
 .DS_Store
 out.json
 timings.csv
