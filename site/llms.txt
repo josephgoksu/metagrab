@@ -1,0 +1,23 @@
+# metagrab
+
+> metagrab is a Go library, CLI and HTTP API that turns a URL into a link preview: title, description, image, favicon, canonical URL, Open Graph, Twitter Cards, JSON-LD and oEmbed. URLs come back absolute. Apache-2.0, current release v0.1.0, requires Go 1.26 or newer.
+
+Install with `go get github.com/josephgoksu/metagrab@latest`. Main call: `metagrab.Fetch(ctx, url, metagrab.PreviewFields)` returns a `*metagrab.Link`; errors are `*metagrab.FetchError` with a machine-readable `Code`. `metagrab.Parse(r, url, mask)` works on HTML you already have.
+
+Field masks: `MetadataFields` and `PreviewFields` stop reading at `</head>`; `RichFields` adds JSON-LD from the whole page. For user-supplied URLs use `metagrab.NewClient(metagrab.WithDenyPrivateNetworks())`, which blocks private and reserved addresses at dial time, including after redirects.
+
+Benchmarks (median fetch from a local server, 1.8 MB page): metagrab 1.84 ms, goscraper 7.09 ms, go-opengraph 8.35 ms, otiai10/opengraph 16.88 ms.
+
+## Docs
+
+- [Website](https://metagrab.josephgoksu.com/): install, example output, field masks, production practices, benchmarks
+- [README](https://github.com/josephgoksu/metagrab/blob/master/readme.md): overview and quick start
+- [Reference](https://github.com/josephgoksu/metagrab/blob/master/docs/reference.md): Link fields, client options, error codes, SSRF protection, oEmbed providers, HTTP API, CLI
+- [API docs on pkg.go.dev](https://pkg.go.dev/github.com/josephgoksu/metagrab)
+- [Benchmarks method and results](https://github.com/josephgoksu/metagrab/tree/master/docs/benchmarks)
+
+## Optional
+
+- [Changelog](https://github.com/josephgoksu/metagrab/blob/master/CHANGELOG.md)
+- [Contributing](https://github.com/josephgoksu/metagrab/blob/master/CONTRIBUTING.md)
+- [Author: Joseph Goksu](https://josephgoksu.com/about)

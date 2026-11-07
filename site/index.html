@@ -13,7 +13,60 @@
 <meta property="og:description" content="Turn a URL into a link preview. Go library, CLI and HTTP API.">
 <meta property="og:url" content="https://metagrab.josephgoksu.com/">
 <meta property="og:image" content="https://metagrab.josephgoksu.com/og.png">
+<meta property="og:site_name" content="metagrab">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@josephgoksu">
+<meta name="author" content="Joseph Goksu">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://metagrab.josephgoksu.com/#website",
+      "name": "metagrab",
+      "url": "https://metagrab.josephgoksu.com/",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://josephgoksu.com/#person" }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://metagrab.josephgoksu.com/#software",
+      "name": "metagrab",
+      "description": "Go library, CLI and HTTP API that turns a URL into a link preview: title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed.",
+      "url": "https://metagrab.josephgoksu.com/",
+      "image": "https://metagrab.josephgoksu.com/logo.svg",
+      "codeRepository": "https://github.com/josephgoksu/metagrab",
+      "programmingLanguage": "Go",
+      "runtimePlatform": "Go 1.26",
+      "version": "0.1.0",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "author": { "@id": "https://josephgoksu.com/#person" },
+      "maintainer": { "@id": "https://josephgoksu.com/#person" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://josephgoksu.com/#person",
+      "name": "Joseph Goksu",
+      "url": "https://josephgoksu.com/about",
+      "image": "https://josephgoksu.com/static/images/avatar.png",
+      "sameAs": [
+        "https://github.com/josephgoksu",
+        "https://www.linkedin.com/in/josephgoksu",
+        "https://twitter.com/josephgoksu",
+        "https://www.youtube.com/@josephgoksu"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "technical support",
+        "url": "https://github.com/josephgoksu/metagrab/issues"
+      }
+    }
+  ]
+}
+</script>
 <style>
 :root {
   color-scheme: light dark;
@@ -32,6 +85,8 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 ::selection { background: var(--tint); }
+.skip { position: absolute; left: 16px; top: -48px; background: var(--brand); color: var(--bg); padding: 8px 12px; border-radius: 8px; z-index: 10; }
+.skip:focus { top: 12px; }
 main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
 a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -153,6 +208,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 </style>
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <main>
 
 <header class="top">
@@ -167,6 +223,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
   </nav>
 </header>
 
+<div id="content"></div>
 <h1>Turn any URL into a <em>link preview</em>.</h1>
 <p class="lede">A Go library, CLI and HTTP API. One call returns the title, description, image, favicon, Open Graph, Twitter Cards, JSON-LD and oEmbed, with absolute URLs.</p>
 <div class="cta">
@@ -230,8 +287,8 @@ fmt.<span class="f">Println</span>(link.Title, link.Image, link.Favicon)</pre></
 </section>
 
 <section id="masks">
-<h2><span class="n">02</span>Ask only for what you need</h2>
-<p>A field mask decides what metagrab extracts and how much of the page it reads.</p>
+<h2><span class="n">02</span>Which fields should I ask for?</h2>
+<p>A field mask decides what metagrab extracts and how much of the page it reads. On the 1.8 MB benchmark page, the head is about 17% of the HTML.</p>
 <div class="masks">
   <div class="mask"><code>MetadataFields</code><p>Title, description, image, Open Graph, Twitter.</p><div class="page" aria-label="Reads the head only"><b style="width:22%"></b></div></div>
   <div class="mask"><code>PreviewFields</code><p>Adds favicon and canonical URL.</p><div class="page" aria-label="Reads the head only"><b style="width:22%"></b></div></div>
@@ -241,8 +298,8 @@ fmt.<span class="f">Println</span>(link.Title, link.Image, link.Favicon)</pre></
 </section>
 
 <section id="practices">
-<h2><span class="n">03</span>Best practices</h2>
-<p>What to do when previews run in production.</p>
+<h2><span class="n">03</span>How do I run it in production?</h2>
+<p>Eight practices for previews of URLs you don't control.</p>
 <ul class="rules">
   <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5 2.5 3.8v3.7c0 3.4 2.3 6 5.5 7 3.2-1 5.5-3.6 5.5-7V3.8L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Block private networks</strong>If users submit URLs, use <code>WithDenyPrivateNetworks()</code>. It checks every dial, redirects too, so a link can't reach <code>169.254.169.254</code> or your LAN.</li>
   <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Put a deadline on every call</strong>Pass a <code>context</code> with a timeout and keep <code>WithTimeout</code> short. Slow sites should fail fast, not hold a request.</li>
@@ -254,6 +311,7 @@ fmt.<span class="f">Println</span>(link.Title, link.Image, link.Favicon)</pre></
   <li><strong><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5" r="2.75" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 14c.6-2.6 2.8-4.25 5.5-4.25s4.9 1.65 5.5 4.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Say who you are</strong>Set <code>WithUserAgent</code> to your product name and a contact URL. Site owners can then reach you instead of blocking you.</li>
 </ul>
 <h3>A production client</h3>
+<p class="mute">Defaults without options: 10 s timeout, no retries, 5 redirects, 2 MB body limit, 10 parallel fetches. This client tightens them:</p>
 <div class="code"><pre>client := metagrab.<span class="f">NewClient</span>(
     metagrab.<span class="f">WithDenyPrivateNetworks</span>(),
     metagrab.<span class="f">WithTimeout</span>(<span class="num">5</span> * time.Second),
@@ -268,7 +326,7 @@ link, err := client.<span class="f">Fetch</span>(ctx, url, metagrab.PreviewField
 
 <section id="cli">
 <h2><span class="n">04</span>CLI and HTTP API</h2>
-<p>Same engine, no Go code needed.</p>
+<p>Same engine, no Go code needed. The server listens on port 8080 and takes one JSON body per request.</p>
 <div class="code labelled"><span class="label">cli</span><pre>brew install --cask josephgoksu/tap/metagrab
 metagrab https://go.dev</pre></div>
 <div class="code labelled"><span class="label">http</span><pre>docker run -p 8080:8080 ghcr.io/josephgoksu/metagrab
@@ -276,7 +334,7 @@ curl localhost:8080/fetch -d <span class="s">'{"url":"https://go.dev"}'</span></
 </section>
 
 <section id="speed">
-<h2><span class="n">05</span>Benchmarks</h2>
+<h2><span class="n">05</span>How fast is it?</h2>
 <p>Time to fetch one preview from a local server, median of 5 runs. Shorter is faster.</p>
 <div class="seg" role="group" aria-label="Page size">
   <button type="button" data-i="0" aria-pressed="false">38 KB</button>
@@ -319,7 +377,8 @@ cd metagrab &amp;&amp; go test -short -race ./...</pre></div>
 
 <footer>
   <span>Apache-2.0 · by <a href="https://josephgoksu.com">Joseph Goksu</a></span>
-  <span><a href="https://github.com/josephgoksu/metagrab">GitHub</a> · <a href="https://github.com/josephgoksu/metagrab/releases">Releases</a> · <a href="https://github.com/josephgoksu/metagrab/blob/master/CHANGELOG.md">Changelog</a></span>
+  <span><a href="https://josephgoksu.com/projects/metagrab">Project page</a> · <a href="https://josephgoksu.com/about">About the author</a> · <a href="https://josephgoksu.com/connect">Contact</a></span>
+  <span><a href="https://github.com/josephgoksu/metagrab/releases">Releases</a> · <a href="https://github.com/josephgoksu/metagrab/blob/master/CHANGELOG.md">Changelog</a> · <a href="https://github.com/josephgoksu" rel="me">GitHub</a> · <a href="https://www.linkedin.com/in/josephgoksu" rel="me">LinkedIn</a> · <a href="https://twitter.com/josephgoksu" rel="me">X</a></span>
 </footer>
 </main>
 
