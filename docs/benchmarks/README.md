@@ -63,55 +63,55 @@ Rows marked *measured* were checked by running each library against the fixtures
 
 | Library | Page | Time/op | Alloc/op | Allocs/op | Body read/op |
 | --- | --- | ---: | ---: | ---: | ---: |
-| metagrab | small | 292 µs | 37 KB | 680 | 38 KB |
-| metagrab | medium | 580 µs | 115 KB | 1105 | 119 KB |
-| metagrab | large | 1.16 ms | 332 KB | 2017 | 257 KB |
-| metagrab | huge | 1.94 ms | 610 KB | 2749 | 445 KB |
-| metagrab (rich) | small | 314 µs | 71 KB | 723 | 38 KB |
-| metagrab (rich) | medium | 647 µs | 142 KB | 1114 | 154 KB |
-| metagrab (rich) | large | 1.32 ms | 364 KB | 2041 | 699 KB |
-| metagrab (rich) | huge | 2.58 ms | 640 KB | 2773 | 1.84 MB |
-| otiai10/opengraph | small | 754 µs | 149 KB | 3183 | 38 KB |
-| otiai10/opengraph | medium | 2.02 ms | 538 KB | 9834 | 154 KB |
-| otiai10/opengraph | large | 6.60 ms | 2.10 MB | 36392 | 699 KB |
-| otiai10/opengraph | huge | 15.25 ms | 5.67 MB | 88421 | 1.84 MB |
-| dyatlov/go-opengraph | small | 448 µs | 23 KB | 1336 | 38 KB |
-| dyatlov/go-opengraph | medium | 1.10 ms | 99 KB | 3806 | 154 KB |
-| dyatlov/go-opengraph | large | 3.31 ms | 368 KB | 13630 | 699 KB |
-| dyatlov/go-opengraph | huge | 8.49 ms | 1.26 MB | 32835 | 1.84 MB |
+| metagrab | small | 280 µs | 29 KB | 561 | 38 KB |
+| metagrab | medium | 627 µs | 100 KB | 896 | 119 KB |
+| metagrab | large | 1.12 ms | 300 KB | 1582 | 257 KB |
+| metagrab | huge | 1.84 ms | 563 KB | 2135 | 445 KB |
+| metagrab (rich) | small | 312 µs | 63 KB | 600 | 38 KB |
+| metagrab (rich) | medium | 550 µs | 122 KB | 884 | 154 KB |
+| metagrab (rich) | large | 1.36 ms | 326 KB | 1590 | 699 KB |
+| metagrab (rich) | huge | 2.22 ms | 589 KB | 2142 | 1.84 MB |
+| otiai10/opengraph | small | 814 µs | 149 KB | 3183 | 38 KB |
+| otiai10/opengraph | medium | 2.06 ms | 538 KB | 9835 | 154 KB |
+| otiai10/opengraph | large | 7.02 ms | 2.10 MB | 36391 | 699 KB |
+| otiai10/opengraph | huge | 16.87 ms | 5.67 MB | 88421 | 1.84 MB |
+| dyatlov/go-opengraph | small | 508 µs | 23 KB | 1336 | 38 KB |
+| dyatlov/go-opengraph | medium | 1.16 ms | 99 KB | 3806 | 154 KB |
+| dyatlov/go-opengraph | large | 3.67 ms | 368 KB | 13630 | 699 KB |
+| dyatlov/go-opengraph | huge | 8.35 ms | 1.26 MB | 32835 | 1.84 MB |
 | goquery (hand-rolled) | small | 909 µs | 152 KB | 3281 | 38 KB |
-| goquery (hand-rolled) | medium | 2.30 ms | 541 KB | 9933 | 154 KB |
-| goquery (hand-rolled) | large | 7.30 ms | 2.10 MB | 36490 | 699 KB |
-| goquery (hand-rolled) | huge | 17.49 ms | 5.67 MB | 88518 | 1.84 MB |
-| badoux/goscraper | small | 437 µs | 160 KB | 591 | 38 KB |
-| badoux/goscraper | medium | 955 µs | 608 KB | 917 | 154 KB |
-| badoux/goscraper | large | 3.06 ms | 2.30 MB | 1717 | 699 KB |
-| badoux/goscraper | huge | 6.82 ms | 4.57 MB | 2364 | 1.84 MB |
+| goquery (hand-rolled) | medium | 2.42 ms | 541 KB | 9932 | 154 KB |
+| goquery (hand-rolled) | large | 7.60 ms | 2.10 MB | 36490 | 699 KB |
+| goquery (hand-rolled) | huge | 19.84 ms | 5.67 MB | 88519 | 1.84 MB |
+| badoux/goscraper | small | 489 µs | 160 KB | 591 | 38 KB |
+| badoux/goscraper | medium | 1.11 ms | 608 KB | 916 | 154 KB |
+| badoux/goscraper | large | 3.28 ms | 2.30 MB | 1717 | 699 KB |
+| badoux/goscraper | huge | 7.09 ms | 4.57 MB | 2362 | 1.84 MB |
 
 ### parse
 
 | Library | Page | Time/op | Alloc/op | Allocs/op |
 | --- | --- | ---: | ---: | ---: |
-| metagrab | small | 69 µs | 33 KB | 588 |
-| metagrab | medium | 179 µs | 99 KB | 956 |
-| metagrab | large | 567 µs | 315 KB | 1866 |
-| metagrab | huge | 1.09 ms | 591 KB | 2597 |
-| metagrab (rich) | small | 94 µs | 67 KB | 631 |
-| metagrab (rich) | medium | 263 µs | 138 KB | 1022 |
-| metagrab (rich) | large | 784 µs | 359 KB | 1949 |
-| metagrab (rich) | huge | 1.79 ms | 635 KB | 2680 |
-| otiai10/opengraph | small | 413 µs | 142 KB | 3091 |
-| otiai10/opengraph | medium | 1.31 ms | 531 KB | 9742 |
-| otiai10/opengraph | large | 5.51 ms | 2.09 MB | 36295 |
-| otiai10/opengraph | huge | 14.38 ms | 5.66 MB | 88319 |
-| dyatlov/go-opengraph | small | 180 µs | 16 KB | 1244 |
-| dyatlov/go-opengraph | medium | 622 µs | 91 KB | 3714 |
-| dyatlov/go-opengraph | large | 2.62 ms | 361 KB | 13538 |
-| dyatlov/go-opengraph | huge | 6.67 ms | 1.25 MB | 32740 |
-| goquery (hand-rolled) | small | 477 µs | 144 KB | 3189 |
-| goquery (hand-rolled) | medium | 1.56 ms | 533 KB | 9840 |
-| goquery (hand-rolled) | large | 6.48 ms | 2.09 MB | 36392 |
-| goquery (hand-rolled) | huge | 16.13 ms | 5.66 MB | 88414 |
+| metagrab | small | 60 µs | 24 KB | 463 |
+| metagrab | medium | 168 µs | 83 KB | 741 |
+| metagrab | large | 491 µs | 282 KB | 1426 |
+| metagrab | huge | 1.05 ms | 544 KB | 1977 |
+| metagrab (rich) | small | 90 µs | 57 KB | 502 |
+| metagrab (rich) | medium | 232 µs | 117 KB | 786 |
+| metagrab (rich) | large | 786 µs | 321 KB | 1492 |
+| metagrab (rich) | huge | 1.61 ms | 583 KB | 2043 |
+| otiai10/opengraph | small | 418 µs | 142 KB | 3091 |
+| otiai10/opengraph | medium | 1.43 ms | 531 KB | 9742 |
+| otiai10/opengraph | large | 5.83 ms | 2.09 MB | 36295 |
+| otiai10/opengraph | huge | 14.95 ms | 5.66 MB | 88319 |
+| dyatlov/go-opengraph | small | 193 µs | 16 KB | 1244 |
+| dyatlov/go-opengraph | medium | 752 µs | 91 KB | 3714 |
+| dyatlov/go-opengraph | large | 2.81 ms | 361 KB | 13538 |
+| dyatlov/go-opengraph | huge | 7.38 ms | 1.25 MB | 32740 |
+| goquery (hand-rolled) | small | 537 µs | 144 KB | 3189 |
+| goquery (hand-rolled) | medium | 1.73 ms | 533 KB | 9840 |
+| goquery (hand-rolled) | large | 7.11 ms | 2.09 MB | 36392 |
+| goquery (hand-rolled) | huge | 17.95 ms | 5.66 MB | 88414 |
 
 ## Method
 

@@ -35,143 +35,143 @@
       "lib": "metagrab",
       "page": "small",
       "mode": "parse",
-      "ns_per_op": 69059.27895873593,
-      "alloc_bytes_per_op": 33640,
-      "allocs_per_op": 588
+      "ns_per_op": 59968.27002803925,
+      "alloc_bytes_per_op": 24408,
+      "allocs_per_op": 463
     },
     {
       "lib": "metagrab",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 292212.91447861964,
-      "alloc_bytes_per_op": 38367,
-      "allocs_per_op": 680,
+      "ns_per_op": 280102.97211981565,
+      "alloc_bytes_per_op": 29698,
+      "allocs_per_op": 561,
       "body_bytes_read_per_op": 39220
     },
     {
       "lib": "metagrab",
       "page": "medium",
       "mode": "parse",
-      "ns_per_op": 179491.86001306764,
-      "alloc_bytes_per_op": 101192,
-      "allocs_per_op": 956
+      "ns_per_op": 167932.84967504945,
+      "alloc_bytes_per_op": 84920,
+      "allocs_per_op": 741
     },
     {
       "lib": "metagrab",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 579689.7070961248,
-      "alloc_bytes_per_op": 118066,
-      "allocs_per_op": 1105,
+      "ns_per_op": 627360.6348104645,
+      "alloc_bytes_per_op": 102317,
+      "allocs_per_op": 896,
       "body_bytes_read_per_op": 121652
     },
     {
       "lib": "metagrab",
       "page": "large",
       "mode": "parse",
-      "ns_per_op": 566627.4705,
-      "alloc_bytes_per_op": 322984,
-      "allocs_per_op": 1866
+      "ns_per_op": 490853.35886761034,
+      "alloc_bytes_per_op": 289120,
+      "allocs_per_op": 1426
     },
     {
       "lib": "metagrab",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 1164892.0706713782,
-      "alloc_bytes_per_op": 340416,
-      "allocs_per_op": 2017,
+      "ns_per_op": 1119338.6900369003,
+      "alloc_bytes_per_op": 307008,
+      "allocs_per_op": 1582,
       "body_bytes_read_per_op": 262758
     },
     {
       "lib": "metagrab",
       "page": "huge",
       "mode": "parse",
-      "ns_per_op": 1094823.628242075,
-      "alloc_bytes_per_op": 605448,
-      "allocs_per_op": 2597
+      "ns_per_op": 1045112.4752994012,
+      "alloc_bytes_per_op": 557504,
+      "allocs_per_op": 1977
     },
     {
       "lib": "metagrab",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 1938828.7640791477,
-      "alloc_bytes_per_op": 624459,
-      "allocs_per_op": 2749,
+      "ns_per_op": 1841083.8098471987,
+      "alloc_bytes_per_op": 576839,
+      "allocs_per_op": 2135,
       "body_bytes_read_per_op": 456181
     },
     {
       "lib": "metagrab (rich)",
       "page": "small",
       "mode": "parse",
-      "ns_per_op": 94494.82394045268,
-      "alloc_bytes_per_op": 68416,
-      "allocs_per_op": 631
+      "ns_per_op": 89670.84245439469,
+      "alloc_bytes_per_op": 58784,
+      "allocs_per_op": 502
     },
     {
       "lib": "metagrab (rich)",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 313837.7561156412,
-      "alloc_bytes_per_op": 73104,
-      "allocs_per_op": 723,
+      "ns_per_op": 312254.6558603491,
+      "alloc_bytes_per_op": 64048,
+      "allocs_per_op": 600,
       "body_bytes_read_per_op": 39220
     },
     {
       "lib": "metagrab (rich)",
       "page": "medium",
       "mode": "parse",
-      "ns_per_op": 262614.7467838765,
-      "alloc_bytes_per_op": 140960,
-      "allocs_per_op": 1022
+      "ns_per_op": 232100.95494057122,
+      "alloc_bytes_per_op": 119504,
+      "allocs_per_op": 786
     },
     {
       "lib": "metagrab (rich)",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 647149.1870835469,
-      "alloc_bytes_per_op": 145687,
-      "allocs_per_op": 1114,
+      "ns_per_op": 549746.7908762421,
+      "alloc_bytes_per_op": 124792,
+      "allocs_per_op": 884,
       "body_bytes_read_per_op": 157250
     },
     {
       "lib": "metagrab (rich)",
       "page": "large",
       "mode": "parse",
-      "ns_per_op": 783685.7733012628,
-      "alloc_bytes_per_op": 367392,
-      "allocs_per_op": 1949
+      "ns_per_op": 786097.3996126533,
+      "alloc_bytes_per_op": 328736,
+      "allocs_per_op": 1492
     },
     {
       "lib": "metagrab (rich)",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 1316772.3729903537,
-      "alloc_bytes_per_op": 372390,
-      "allocs_per_op": 2041,
+      "ns_per_op": 1355500.392108508,
+      "alloc_bytes_per_op": 334176,
+      "allocs_per_op": 1590,
       "body_bytes_read_per_op": 716262
     },
     {
       "lib": "metagrab (rich)",
       "page": "huge",
       "mode": "parse",
-      "ns_per_op": 1790006.8943758574,
-      "alloc_bytes_per_op": 649848,
-      "allocs_per_op": 2680
+      "ns_per_op": 1613368.7799401197,
+      "alloc_bytes_per_op": 597112,
+      "allocs_per_op": 2043
     },
     {
       "lib": "metagrab (rich)",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 2583064.784753363,
-      "alloc_bytes_per_op": 655807,
-      "allocs_per_op": 2773,
+      "ns_per_op": 2220420.865209472,
+      "alloc_bytes_per_op": 603131,
+      "allocs_per_op": 2142,
       "body_bytes_read_per_op": 1928585
     },
     {
       "lib": "otiai10/opengraph",
       "page": "small",
       "mode": "parse",
-      "ns_per_op": 413286.0146657572,
+      "ns_per_op": 417614.11282616685,
       "alloc_bytes_per_op": 145401,
       "allocs_per_op": 3091
     },
@@ -179,8 +179,8 @@
       "lib": "otiai10/opengraph",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 753836.8404645476,
-      "alloc_bytes_per_op": 153039,
+      "ns_per_op": 813567.0722642808,
+      "alloc_bytes_per_op": 153035,
       "allocs_per_op": 3183,
       "body_bytes_read_per_op": 39220
     },
@@ -188,50 +188,50 @@
       "lib": "otiai10/opengraph",
       "page": "medium",
       "mode": "parse",
-      "ns_per_op": 1309596.770609319,
-      "alloc_bytes_per_op": 543419,
+      "ns_per_op": 1433873.3587223587,
+      "alloc_bytes_per_op": 543426,
       "allocs_per_op": 9742
     },
     {
       "lib": "otiai10/opengraph",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 2015424.7216174183,
-      "alloc_bytes_per_op": 551285,
-      "allocs_per_op": 9834,
+      "ns_per_op": 2055653.0855614974,
+      "alloc_bytes_per_op": 551341,
+      "allocs_per_op": 9835,
       "body_bytes_read_per_op": 157250
     },
     {
       "lib": "otiai10/opengraph",
       "page": "large",
       "mode": "parse",
-      "ns_per_op": 5507276.957943926,
-      "alloc_bytes_per_op": 2193837,
+      "ns_per_op": 5826083.796116505,
+      "alloc_bytes_per_op": 2193841,
       "allocs_per_op": 36295
     },
     {
       "lib": "otiai10/opengraph",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 6603882.773480663,
-      "alloc_bytes_per_op": 2203154,
-      "allocs_per_op": 36392,
+      "ns_per_op": 7018187.061797753,
+      "alloc_bytes_per_op": 2203070,
+      "allocs_per_op": 36391,
       "body_bytes_read_per_op": 716262
     },
     {
       "lib": "otiai10/opengraph",
       "page": "huge",
       "mode": "parse",
-      "ns_per_op": 14377053.67,
-      "alloc_bytes_per_op": 5932573,
+      "ns_per_op": 14954971.777777778,
+      "alloc_bytes_per_op": 5932578,
       "allocs_per_op": 88319
     },
     {
       "lib": "otiai10/opengraph",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 15253906.0875,
-      "alloc_bytes_per_op": 5943499,
+      "ns_per_op": 16874843.701492537,
+      "alloc_bytes_per_op": 5943223,
       "allocs_per_op": 88421,
       "body_bytes_read_per_op": 1928585
     },
@@ -239,7 +239,7 @@
       "lib": "dyatlov/go-opengraph",
       "page": "small",
       "mode": "parse",
-      "ns_per_op": 180492.79537953794,
+      "ns_per_op": 193134.2232848233,
       "alloc_bytes_per_op": 16256,
       "allocs_per_op": 1244
     },
@@ -247,7 +247,7 @@
       "lib": "dyatlov/go-opengraph",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 447934.6068911511,
+      "ns_per_op": 507602.1993006993,
       "alloc_bytes_per_op": 23862,
       "allocs_per_op": 1336,
       "body_bytes_read_per_op": 39220
@@ -256,7 +256,7 @@
       "lib": "dyatlov/go-opengraph",
       "page": "medium",
       "mode": "parse",
-      "ns_per_op": 621636.6193155181,
+      "ns_per_op": 752413.692563081,
       "alloc_bytes_per_op": 93672,
       "allocs_per_op": 3714
     },
@@ -264,8 +264,8 @@
       "lib": "dyatlov/go-opengraph",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 1099687.5004374452,
-      "alloc_bytes_per_op": 101309,
+      "ns_per_op": 1155160.5857664233,
+      "alloc_bytes_per_op": 101315,
       "allocs_per_op": 3806,
       "body_bytes_read_per_op": 157250
     },
@@ -273,7 +273,7 @@
       "lib": "dyatlov/go-opengraph",
       "page": "large",
       "mode": "parse",
-      "ns_per_op": 2615261.753488372,
+      "ns_per_op": 2813305.04589372,
       "alloc_bytes_per_op": 369496,
       "allocs_per_op": 13538
     },
@@ -281,8 +281,8 @@
       "lib": "dyatlov/go-opengraph",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 3311653.610619469,
-      "alloc_bytes_per_op": 377226,
+      "ns_per_op": 3674479.6495468277,
+      "alloc_bytes_per_op": 377309,
       "allocs_per_op": 13630,
       "body_bytes_read_per_op": 716262
     },
@@ -290,16 +290,16 @@
       "lib": "dyatlov/go-opengraph",
       "page": "huge",
       "mode": "parse",
-      "ns_per_op": 6666592.108571429,
-      "alloc_bytes_per_op": 1310185,
+      "ns_per_op": 7383257.18128655,
+      "alloc_bytes_per_op": 1310184,
       "allocs_per_op": 32740
     },
     {
       "lib": "dyatlov/go-opengraph",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 8492762.31724138,
-      "alloc_bytes_per_op": 1319012,
+      "ns_per_op": 8345714.582191781,
+      "alloc_bytes_per_op": 1318867,
       "allocs_per_op": 32835,
       "body_bytes_read_per_op": 1928585
     },
@@ -307,7 +307,7 @@
       "lib": "goquery (hand-rolled)",
       "page": "small",
       "mode": "parse",
-      "ns_per_op": 477374.05486862443,
+      "ns_per_op": 536918.0627094303,
       "alloc_bytes_per_op": 147968,
       "allocs_per_op": 3189
     },
@@ -315,8 +315,8 @@
       "lib": "goquery (hand-rolled)",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 908756.5531914893,
-      "alloc_bytes_per_op": 155632,
+      "ns_per_op": 908888.2756944444,
+      "alloc_bytes_per_op": 155608,
       "allocs_per_op": 3281,
       "body_bytes_read_per_op": 39220
     },
@@ -324,7 +324,7 @@
       "lib": "goquery (hand-rolled)",
       "page": "medium",
       "mode": "parse",
-      "ns_per_op": 1559100.6776859504,
+      "ns_per_op": 1734037.3064102563,
       "alloc_bytes_per_op": 545961,
       "allocs_per_op": 9840
     },
@@ -332,25 +332,25 @@
       "lib": "goquery (hand-rolled)",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 2300611.8884540116,
-      "alloc_bytes_per_op": 553899,
-      "allocs_per_op": 9933,
+      "ns_per_op": 2419311.857425743,
+      "alloc_bytes_per_op": 553815,
+      "allocs_per_op": 9932,
       "body_bytes_read_per_op": 157250
     },
     {
       "lib": "goquery (hand-rolled)",
       "page": "large",
       "mode": "parse",
-      "ns_per_op": 6482797.483695652,
-      "alloc_bytes_per_op": 2196201,
+      "ns_per_op": 7105489.141025641,
+      "alloc_bytes_per_op": 2196202,
       "allocs_per_op": 36392
     },
     {
       "lib": "goquery (hand-rolled)",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 7304823.668711657,
-      "alloc_bytes_per_op": 2205817,
+      "ns_per_op": 7596706.871794872,
+      "alloc_bytes_per_op": 2205789,
       "allocs_per_op": 36490,
       "body_bytes_read_per_op": 716262
     },
@@ -358,25 +358,25 @@
       "lib": "goquery (hand-rolled)",
       "page": "huge",
       "mode": "parse",
-      "ns_per_op": 16130717.2125,
-      "alloc_bytes_per_op": 5934707,
+      "ns_per_op": 17954998.5,
+      "alloc_bytes_per_op": 5934706,
       "allocs_per_op": 88414
     },
     {
       "lib": "goquery (hand-rolled)",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 17491579.5375,
-      "alloc_bytes_per_op": 5945648,
-      "allocs_per_op": 88518,
+      "ns_per_op": 19838291.707317073,
+      "alloc_bytes_per_op": 5945848,
+      "allocs_per_op": 88519,
       "body_bytes_read_per_op": 1928585
     },
     {
       "lib": "badoux/goscraper",
       "page": "small",
       "mode": "fetch",
-      "ns_per_op": 436904.7428125,
-      "alloc_bytes_per_op": 163993,
+      "ns_per_op": 489090.6423494201,
+      "alloc_bytes_per_op": 163988,
       "allocs_per_op": 591,
       "body_bytes_read_per_op": 39220
     },
@@ -384,17 +384,17 @@
       "lib": "badoux/goscraper",
       "page": "medium",
       "mode": "fetch",
-      "ns_per_op": 954514.1446740859,
-      "alloc_bytes_per_op": 622648,
-      "allocs_per_op": 917,
+      "ns_per_op": 1114826.6431605776,
+      "alloc_bytes_per_op": 622599,
+      "allocs_per_op": 916,
       "body_bytes_read_per_op": 157250
     },
     {
       "lib": "badoux/goscraper",
       "page": "large",
       "mode": "fetch",
-      "ns_per_op": 3058365.806629834,
-      "alloc_bytes_per_op": 2412735,
+      "ns_per_op": 3279669.4739583335,
+      "alloc_bytes_per_op": 2412714,
       "allocs_per_op": 1717,
       "body_bytes_read_per_op": 716262
     },
@@ -402,9 +402,9 @@
       "lib": "badoux/goscraper",
       "page": "huge",
       "mode": "fetch",
-      "ns_per_op": 6822757.645161291,
-      "alloc_bytes_per_op": 4788778,
-      "allocs_per_op": 2364,
+      "ns_per_op": 7089238.19375,
+      "alloc_bytes_per_op": 4788186,
+      "allocs_per_op": 2362,
       "body_bytes_read_per_op": 1928585
     }
   ],
