@@ -66,6 +66,6 @@ Production deployments should additionally implement:
 | --- | --- | --- |
 | Without `JSONLDField` or `ContentField` | Streaming tokenizer (`extractMetadataFromHead`) | Until `</head>` or `<body>` |
 | With `JSONLDField` | Tokenizer for the head, then `scanJSONLD` for the body | Whole document, but the body is only scanned for JSON-LD scripts |
-| With `ContentField` | Full DOM parse (`extractMetadata`) | Whole document, buffered |
+| With `ContentField` | Same tokenizer and scanner, run over the buffered body | Whole document, buffered |
 
-All paths share the `extractor` type, so they apply the same rules. Inside `<body>`, only JSON-LD is collected.
+All paths run `extractMetadataFromHead` and share the `extractor` type, so they apply the same rules. Inside `<body>`, only JSON-LD is collected. There is no DOM parse: `html.Parse` moves `<meta>` tags that follow a stray element in `<head>` into `<body>`, which would make results depend on the mask.

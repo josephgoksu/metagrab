@@ -15,6 +15,11 @@ import (
 // in a private, loopback, link-local or otherwise reserved range.
 var ErrPrivateAddress = errors.New("address is private or reserved")
 
+// nat64Prefix is the well-known NAT64 prefix (RFC 6052). On IPv6-only hosts
+// with DNS64, every IPv4-only site resolves into it, so the embedded IPv4
+// address is checked instead of rejecting the whole range.
+var nat64Prefix = netip.MustParsePrefix("64:ff9b::/96")
+
 // reservedPrefixes lists ranges that net/netip helpers do not already cover.
 var reservedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"),       // "this network"
@@ -25,17 +30,21 @@ var reservedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("198.51.100.0/24"), // TEST-NET-2
 	netip.MustParsePrefix("203.0.113.0/24"),  // TEST-NET-3
 	netip.MustParsePrefix("240.0.0.0/4"),     // reserved + broadcast
-	netip.MustParsePrefix("64:ff9b::/96"),    // NAT64 (can reach IPv4 private space)
 	netip.MustParsePrefix("64:ff9b:1::/48"),  // local-use NAT64
 	netip.MustParsePrefix("2001:db8::/32"),   // documentation
 }
 
 // IsPublicAddr reports whether addr is a globally routable unicast address.
 // It returns false for loopback, private (RFC 1918, ULA), link-local,
-// multicast, unspecified, CGNAT, documentation, NAT64 and other reserved
-// ranges. IPv4-mapped IPv6 addresses are checked as IPv4.
+// multicast, unspecified, CGNAT, documentation, local-use NAT64 and other reserved
+// ranges. IPv4-mapped IPv6 addresses, and NAT64 addresses in 64:ff9b::/96,
+// are checked as the IPv4 address they carry.
 func IsPublicAddr(addr netip.Addr) bool {
 	addr = addr.Unmap()
+	if nat64Prefix.Contains(addr) {
+		b := addr.As16()
+		addr = netip.AddrFrom4([4]byte(b[12:16]))
+	}
 	if !addr.IsValid() || addr.IsUnspecified() || addr.IsLoopback() ||
 		addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() ||
 		addr.IsInterfaceLocalMulticast() || addr.IsMulticast() {

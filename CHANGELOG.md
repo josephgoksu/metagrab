@@ -13,7 +13,7 @@ pseudo-versions (`v0.0.0-2026...`).
 
 - `Parse` and `Client.Parse`: extract metadata from HTML you already have.
 - `Link.Image`: best absolute preview image (`og:image`, then `twitter:image`, then the oEmbed thumbnail).
-- `WithDenyPrivateNetworks`: dial-time SSRF protection that also covers redirects and DNS rebinding. `IsPublicAddr` and `ErrPrivateAddress` are exported.
+- `WithDenyPrivateNetworks`: dial-time SSRF protection that also covers redirects and DNS rebinding. `IsPublicAddr` and `ErrPrivateAddress` are exported. While it is on, `HTTP_PROXY`/`HTTPS_PROXY` are ignored. `IsPublicAddr` checks the IPv4 address inside a NAT64 address (`64:ff9b::/96`), so DNS64 networks keep working.
 - `WithMaxRedirects` (default 5) and `WithMaxRetryWait` (default 30s).
 - Charset decoding for non-UTF-8 pages.
 - CLI: `metagrab serve` (HTTP API), `metagrab version`, `-concurrency`, `-compact`, `-quiet`.
@@ -29,7 +29,8 @@ pseudo-versions (`v0.0.0-2026...`).
 - The first value of a repeated tag (such as `og:image`) wins.
 - Favicon `rel` values are parsed as token lists; `mask-icon` is ignored.
 - oEmbed fills `SiteName` from the provider name (for example "YouTube") and `Author` from the author name. Before, the author name went into `SiteName`.
-- Fetch keeps the connection alive when little of the body is left to read.
+- Fetch keeps the connection alive when little of the body is left to read and it arrives quickly.
+- `ContentField` buffers the body but extracts metadata with the same streaming tokenizer as the other masks (no DOM parse), so the mask never changes what is found.
 - Default User-Agent is `metagrab/1 (+https://github.com/josephgoksu/metagrab)`.
 - `httphandler`: upstream non-2xx responses return `502` (upstream status in `status_code`), non-HTML returns `422`, and `/health` does not need the API key.
 - Minimum Go version is 1.26.

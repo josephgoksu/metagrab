@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -144,6 +145,7 @@ const (
 	defaultMaxRetryWait = 30 * time.Second
 	defaultMaxRedirects = 5
 	maxDrainBytes       = 64 * 1024
+	maxDrainWait        = 100 * time.Millisecond
 )
 
 var (
@@ -228,7 +230,8 @@ func (c *Client) newHTTPClient() *http.Client {
 	if c.denyPrivate {
 		dialer.Control = dialControlDenyPrivate
 		// Through a proxy the dialer would only see the proxy's address,
-		// which silently disables the check.
+		// which silently disables the check. WithDenyPrivateNetworks
+		// documents that HTTP(S)_PROXY is ignored.
 		transport.Proxy = nil
 	}
 	transport.DialContext = dialer.DialContext
@@ -246,7 +249,7 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 		// Hand the last 3xx back to the caller instead of following it.
 		return http.ErrUseLastResponse
 	}
-	if _, err := validateURL(req.URL.String()); err != nil {
+	if err := checkURL(req.URL); err != nil {
 		return fmt.Errorf("%w: %v", errRedirectDenied, err)
 	}
 	if c.urlPolicy != nil {
@@ -299,9 +302,14 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 		return link, nil
 	}
 
+	// reqCtx lets the deferred drain below give up on a body that trickles
+	// or never ends, without touching the caller's ctx.
+	reqCtx, cancelReq := context.WithCancel(ctx)
+	defer cancelReq()
+
 	var resp *http.Response
 	for attempt := 0; ; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, parsedURL.String(), nil)
 		if err != nil {
 			return nil, newFetchError(ErrorCodeRequestBuild, parsedURL.String(), "failed to build request", err)
 		}
@@ -329,8 +337,12 @@ func (c *Client) Fetch(ctx context.Context, rawURL string, mask Field) (*Link, e
 	defer func() {
 		// Read a little of what is left so the connection can go back to the
 		// pool; a body closed early forces a new TCP+TLS handshake next time.
-		// Larger leftovers are cheaper to drop than to download.
+		// Larger leftovers are cheaper to drop than to download, and the
+		// drain is time-bounded too: a server that streams slowly or never
+		// finishes must not hold the result back until the timeout.
+		stop := time.AfterFunc(maxDrainWait, cancelReq)
 		_, _ = io.CopyN(io.Discard, resp.Body, maxDrainBytes)
+		stop.Stop()
 		_ = resp.Body.Close()
 	}()
 
@@ -451,8 +463,8 @@ func (c *Client) FetchBulkResults(ctx context.Context, urls []string, mask Field
 	return results
 }
 
-// extractor accumulates metadata from either the DOM walker or the
-// streaming head tokenizer, so both paths apply identical rules.
+// extractor accumulates metadata from the head tokenizer and the JSON-LD
+// body scanner.
 type extractor struct {
 	link        *Link
 	base        string
@@ -474,7 +486,7 @@ func (e *extractor) linkTag(rel, href, sizes string) {
 	}
 	tokens := strings.Fields(strings.ToLower(rel))
 
-	if e.mask.Has(CanonicalField) && e.link.CanonicalURL == "" && hasToken(tokens, "canonical") {
+	if e.mask.Has(CanonicalField) && e.link.CanonicalURL == "" && slices.Contains(tokens, "canonical") {
 		e.link.CanonicalURL = resolveURL(e.base, href)
 	}
 
@@ -531,77 +543,6 @@ func (e *extractor) finish() {
 
 func isLDJSONType(v string) bool {
 	return strings.EqualFold(strings.TrimSpace(v), "application/ld+json")
-}
-
-// extractMetadata walks a parsed document. Only <script> elements are read
-// inside <body>, and only when JSON-LD is requested.
-func extractMetadata(doc *html.Node, link *Link, base string, mask Field) {
-	if doc == nil {
-		return
-	}
-	e := &extractor{link: link, base: base, mask: mask}
-
-	var walk func(node *html.Node, inBody bool)
-	walk = func(node *html.Node, inBody bool) {
-		if node.Type == html.ElementNode {
-			switch node.Data {
-			case "body":
-				if !mask.Has(JSONLDField) {
-					return
-				}
-				inBody = true
-			case "title":
-				if !inBody {
-					e.title(textContent(node))
-				}
-			case "meta":
-				if !inBody {
-					var name, property, content string
-					for _, a := range node.Attr {
-						switch strings.ToLower(a.Key) {
-						case "name":
-							name = a.Val
-						case "property":
-							property = a.Val
-						case "content":
-							content = a.Val
-						}
-					}
-					applyMetaTag(name, property, content, link, mask)
-				}
-			case "link":
-				if !inBody {
-					var rel, href, sizes string
-					for _, a := range node.Attr {
-						switch strings.ToLower(a.Key) {
-						case "rel":
-							rel = a.Val
-						case "href":
-							href = a.Val
-						case "sizes":
-							sizes = a.Val
-						}
-					}
-					e.linkTag(rel, href, sizes)
-				}
-			case "script":
-				if e.wantJSONLD() {
-					for _, a := range node.Attr {
-						if strings.ToLower(a.Key) == "type" && isLDJSONType(a.Val) {
-							e.jsonLD(textContent(node))
-							break
-						}
-					}
-				}
-				return
-			}
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			walk(child, inBody)
-		}
-	}
-	walk(doc, false)
-	e.finish()
 }
 
 func applyMetaTag(name, property, content string, link *Link, mask Field) {
@@ -697,21 +638,30 @@ func extractMetadataFromHead(r io.Reader, link *Link, base string, mask Field) e
 	z := html.NewTokenizer(r)
 	e := &extractor{link: link, base: base, mask: mask}
 
-	attrs := func(hasAttr bool, keys ...string) map[string]string {
-		out := make(map[string]string, len(keys))
+	// attrs returns the values of up to three attributes of the current tag,
+	// in the order of keys. The first occurrence of an attribute wins, as in
+	// browsers. The tokenizer already lower-cases attribute keys.
+	attrs := func(hasAttr bool, keys ...string) (vals [3]string) {
+		var seen [3]bool
 		for hasAttr {
 			k, v, more := z.TagAttr()
-			key := strings.ToLower(string(k))
-			for _, want := range keys {
-				if key == want {
-					if _, dup := out[key]; !dup {
-						out[key] = string(v)
-					}
+			for i, want := range keys {
+				if !seen[i] && string(k) == want {
+					vals[i], seen[i] = string(v), true
 				}
 			}
 			hasAttr = more
 		}
-		return out
+		return vals
+	}
+
+	// scanRest hands everything the tokenizer has not consumed to the
+	// JSON-LD body scanner, when JSON-LD is requested.
+	scanRest := func() error {
+		if !mask.Has(JSONLDField) {
+			return nil
+		}
+		return scanJSONLD(io.MultiReader(bytes.NewReader(z.Buffered()), r), e)
 	}
 
 loop:
@@ -725,20 +675,12 @@ loop:
 			break loop
 		case html.StartTagToken, html.SelfClosingTagToken:
 			name, hasAttr := z.TagName()
-			tag := string(name) // the tokenizer lower-cases tag names
-
-			if tag == "body" {
-				if !mask.Has(JSONLDField) {
-					break loop
-				}
-				// Only JSON-LD is left to collect: switch to the fast scanner.
-				rest := io.MultiReader(bytes.NewReader(z.Buffered()), r)
-				if err := scanJSONLD(rest, e); err != nil {
+			switch string(name) { // the tokenizer lower-cases tag names
+			case "body":
+				if err := scanRest(); err != nil {
 					return err
 				}
 				break loop
-			}
-			switch tag {
 			case "title":
 				if tt == html.StartTagToken {
 					var sb strings.Builder
@@ -749,16 +691,16 @@ loop:
 				}
 			case "meta":
 				a := attrs(hasAttr, "name", "property", "content")
-				applyMetaTag(a["name"], a["property"], a["content"], link, mask)
+				applyMetaTag(a[0], a[1], a[2], link, mask)
 			case "link":
 				a := attrs(hasAttr, "rel", "href", "sizes")
-				e.linkTag(a["rel"], a["href"], a["sizes"])
+				e.linkTag(a[0], a[1], a[2])
 			case "script":
 				if !e.wantJSONLD() {
 					continue
 				}
 				a := attrs(hasAttr, "type")
-				if !isLDJSONType(a["type"]) || tt != html.StartTagToken {
+				if !isLDJSONType(a[0]) || tt != html.StartTagToken {
 					continue
 				}
 				var sb strings.Builder
@@ -768,13 +710,9 @@ loop:
 				e.jsonLD(sb.String())
 			}
 		case html.EndTagToken:
-			name, _ := z.TagName()
-			if string(name) == "head" {
-				if mask.Has(JSONLDField) {
-					rest := io.MultiReader(bytes.NewReader(z.Buffered()), r)
-					if err := scanJSONLD(rest, e); err != nil {
-						return err
-					}
+			if name, _ := z.TagName(); string(name) == "head" {
+				if err := scanRest(); err != nil {
+					return err
 				}
 				break loop
 			}
@@ -785,18 +723,12 @@ loop:
 	return nil
 }
 
-func hasToken(tokens []string, want string) bool {
-	for _, t := range tokens {
-		if t == want {
-			return true
-		}
-	}
-	return false
-}
-
 func collapseSpace(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
+
+// sniffLen is how many leading bytes are examined for a <meta charset>.
+const sniffLen = 1024
 
 // utf8Reader wraps r so it yields UTF-8. The encoding comes from a BOM,
 // the Content-Type charset, or a <meta charset> in the first 1024 bytes.
@@ -805,12 +737,80 @@ func collapseSpace(s string) string {
 // undeclared UTF-8 pages).
 func utf8Reader(r io.Reader, contentType string) io.Reader {
 	br := bufio.NewReaderSize(r, 4096)
-	head, _ := br.Peek(1024)
+	head := peekHead(br)
 	enc, name, certain := charset.DetermineEncoding(head, contentType)
-	if name == "utf-8" || (!certain && name == "windows-1252") {
+	if name == "utf-8" {
+		return br
+	}
+	// DetermineEncoding reports both "nothing declared" and a <meta> that
+	// declares windows-1252 (or iso-8859-1, us-ascii, ...) as an uncertain
+	// windows-1252. Only the first means UTF-8.
+	if !certain && name == "windows-1252" && !declaresWindows1252(head) {
 		return br
 	}
 	return enc.NewDecoder().Reader(br)
+}
+
+// peekHead returns up to sniffLen bytes from br without consuming them. It
+// stops early once </head> or <body has arrived, so a small page whose
+// server keeps the response open does not block until the timeout.
+func peekHead(br *bufio.Reader) []byte {
+	for {
+		n := br.Buffered()
+		if n >= sniffLen {
+			head, _ := br.Peek(sniffLen)
+			return head
+		}
+		head, err := br.Peek(n + 1) // waits for at least one more read
+		if err != nil {
+			return head
+		}
+		head, _ = br.Peek(min(br.Buffered(), sniffLen))
+		lower := bytes.ToLower(head)
+		if bytes.Contains(lower, []byte("</head")) || bytes.Contains(lower, []byte("<body")) {
+			return head
+		}
+	}
+}
+
+// declaresWindows1252 reports whether head has a <meta charset> or a
+// <meta http-equiv="Content-Type"> whose label maps to windows-1252.
+func declaresWindows1252(head []byte) bool {
+	is1252 := func(label string) bool {
+		_, name := charset.Lookup(strings.TrimSpace(label))
+		return name == "windows-1252"
+	}
+	z := html.NewTokenizer(bytes.NewReader(head))
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			return false
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, hasAttr := z.TagName()
+			if string(name) != "meta" {
+				continue
+			}
+			var isContentType bool
+			var label string
+			for hasAttr {
+				k, v, more := z.TagAttr()
+				switch string(k) {
+				case "charset":
+					return is1252(string(v))
+				case "http-equiv":
+					isContentType = strings.EqualFold(strings.TrimSpace(string(v)), "content-type")
+				case "content":
+					if _, params, err := mime.ParseMediaType(string(v)); err == nil {
+						label = params["charset"]
+					}
+				}
+				hasAttr = more
+			}
+			if isContentType && label != "" {
+				return is1252(label)
+			}
+		}
+	}
 }
 
 // decodeToUTF8 converts a full body to UTF-8 (same rules as utf8Reader).
@@ -845,11 +845,11 @@ func resolveURL(base, ref string) string {
 // faviconPriority scores lower-cased rel tokens for favicon preference.
 func faviconPriority(tokens []string) int {
 	switch {
-	case hasToken(tokens, "apple-touch-icon"), hasToken(tokens, "apple-touch-icon-precomposed"):
+	case slices.Contains(tokens, "apple-touch-icon"), slices.Contains(tokens, "apple-touch-icon-precomposed"):
 		return 3
-	case hasToken(tokens, "icon") && hasToken(tokens, "shortcut"):
+	case slices.Contains(tokens, "icon") && slices.Contains(tokens, "shortcut"):
 		return 1
-	case hasToken(tokens, "icon"):
+	case slices.Contains(tokens, "icon"):
 		return 2
 	default:
 		return 0
@@ -933,21 +933,6 @@ func extractContentType(blocks []map[string]any) string {
 	return ""
 }
 
-func textContent(n *html.Node) string {
-	var sb strings.Builder
-	var walk func(*html.Node)
-	walk = func(node *html.Node) {
-		if node.Type == html.TextNode {
-			sb.WriteString(node.Data)
-		}
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(n)
-	return strings.TrimSpace(sb.String())
-}
-
 func validateURL(rawURL string) (*url.URL, error) {
 	trimmed := strings.TrimSpace(rawURL)
 	if trimmed == "" {
@@ -961,20 +946,28 @@ func validateURL(rawURL string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := checkURL(u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
 
+// checkURL applies the scheme, host and userinfo rules. Redirect targets get
+// these checks but not the input length cap: SSO and consent redirects often
+// carry long query strings.
+func checkURL(u *url.URL) error {
 	scheme := strings.ToLower(u.Scheme)
 	if scheme != "http" && scheme != "https" {
-		return nil, fmt.Errorf("unsupported scheme %q", u.Scheme)
+		return fmt.Errorf("unsupported scheme %q", u.Scheme)
 	}
 
 	if u.Hostname() == "" {
-		return nil, errors.New("URL host is empty")
+		return errors.New("URL host is empty")
 	}
 	if u.User != nil {
-		return nil, errors.New("URL userinfo is not allowed")
+		return errors.New("URL userinfo is not allowed")
 	}
-
-	return u, nil
+	return nil
 }
 
 func validateContentType(raw string) error {

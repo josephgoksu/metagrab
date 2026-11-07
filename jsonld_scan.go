@@ -25,11 +25,22 @@ func scanJSONLD(r io.Reader, e *extractor) error {
 		switch {
 		case bytes.HasPrefix(head, []byte("!--")):
 			_, _ = br.Discard(3)
-			if err := skipPastSeq(br, "-->"); err != nil {
-				return eofIsNil(err)
+			// "<!-->" and "<!--->" are complete (empty) comments in HTML.
+			switch next, _ := br.Peek(2); {
+			case bytes.HasPrefix(next, []byte(">")):
+				_, _ = br.Discard(1)
+			case bytes.HasPrefix(next, []byte("->")):
+				_, _ = br.Discard(2)
+			default:
+				if err := skipPastSeq(br, "-->"); err != nil {
+					return eofIsNil(err)
+				}
 			}
 		case len(head) == 7 && strings.EqualFold(string(head[:6]), "script") && isTagNameEnd(head[6]):
 			tag, err := readTag(br)
+			if errors.Is(err, errTagTooLong) {
+				continue // not a tag we can read; keep scanning after it
+			}
 			if err != nil {
 				return eofIsNil(err)
 			}
@@ -80,12 +91,17 @@ func skipPastSeq(br *bufio.Reader, seq string) error {
 	}
 }
 
+var errTagTooLong = errors.New("script tag too long")
+
 // readTag reads the rest of a start tag (after '<') up to and including
-// the closing '>', honouring quoted attribute values. It returns the tag
-// with its leading '<' restored.
+// the closing '>', honouring quoted attribute values. As in HTML, a quote
+// only opens a value right after '=' (and optional whitespace); elsewhere,
+// such as in data-x=it's, it is an ordinary character. It returns the tag
+// with its leading '<' restored, or errTagTooLong past 16 KB.
 func readTag(br *bufio.Reader) ([]byte, error) {
 	tag := []byte{'<'}
 	var quote byte
+	afterEq := false
 	for {
 		c, err := br.ReadByte()
 		if err != nil {
@@ -97,13 +113,19 @@ func readTag(br *bufio.Reader) ([]byte, error) {
 			if c == quote {
 				quote = 0
 			}
-		case c == '"' || c == '\'':
-			quote = c
+		case afterEq && (c == '"' || c == '\''):
+			quote, afterEq = c, false
 		case c == '>':
 			return tag, nil
+		case c == '=':
+			afterEq = true
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f':
+			// whitespace may sit between '=' and the value
+		default:
+			afterEq = false
 		}
 		if len(tag) > 16*1024 {
-			return nil, errors.New("script tag too long")
+			return nil, errTagTooLong
 		}
 	}
 }
@@ -140,7 +162,12 @@ func isTagNameEnd(c byte) bool {
 }
 
 // scriptType returns the type attribute of a single <script ...> start tag.
+// Tags that cannot be JSON-LD skip the tokenizer, which allocates a 4 KB
+// buffer each time.
 func scriptType(tag []byte) string {
+	if !bytes.Contains(bytes.ToLower(tag), []byte("ld+json")) {
+		return ""
+	}
 	z := html.NewTokenizer(bytes.NewReader(tag))
 	if tt := z.Next(); tt != html.StartTagToken && tt != html.SelfClosingTagToken {
 		return ""
