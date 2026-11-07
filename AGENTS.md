@@ -21,6 +21,7 @@ Cards, favicon, canonical URL, JSON-LD and oEmbed.
 | `httphandler/` | `http.Handler` exposing `POST /fetch`, `POST /fetch-bulk`, `GET /health` |
 | `cmd/metagrab/` | CLI and `metagrab serve` |
 | `bench/` | Separate module: comparison benchmarks and chart generator |
+| `docs/reference.md` | Full usage reference (masks, fields, options, errors, HTTP API, CLI); keep the README short and put details here |
 | `docs/benchmarks/` | Generated results and SVG charts (do not edit by hand) |
 | `examples/` | Lambda, Cloudflare Container and standalone server examples |
 | `site/` | Website at metagrab.josephgoksu.com: one static page, deployed to GitHub Pages on merge. Its benchmark numbers are copied from `docs/benchmarks/results.json`; update them when you regenerate. |
