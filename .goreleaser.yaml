@@ -62,7 +62,7 @@ homebrew_casks:
     binaries: [metagrab]
     description: "Fetch link-preview metadata (Open Graph, Twitter Cards, JSON-LD, oEmbed) from any URL"
     homepage: "https://github.com/josephgoksu/metagrab"
-    license: "MIT"
+    license: "Apache-2.0"
     repository:
       owner: josephgoksu
       name: homebrew-tap
