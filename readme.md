@@ -1,49 +1,64 @@
-<img src="./assets/logo.png" alt="metagrab" height="250" width="250" align="right" style="margin-left: 10px;" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img src="assets/banner-light.svg" alt="metagrab: link previews for Go" width="820">
+</picture>
 
-# metagrab
-
+[![CI](https://github.com/josephgoksu/metagrab/actions/workflows/ci.yml/badge.svg)](https://github.com/josephgoksu/metagrab/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/josephgoksu/metagrab.svg)](https://pkg.go.dev/github.com/josephgoksu/metagrab)
 [![Go Report Card](https://goreportcard.com/badge/github.com/josephgoksu/metagrab)](https://goreportcard.com/report/github.com/josephgoksu/metagrab)
+[![Release](https://img.shields.io/github/v/release/josephgoksu/metagrab?sort=semver)](https://github.com/josephgoksu/metagrab/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-Fast, focused URL metadata extraction for Go. Extracts titles, descriptions, Open Graph, Twitter Cards, favicons, canonical URLs, author/date metadata, JSON-LD structured data, and oEmbed from any URL — with built-in retries, SSRF protection, and a deploy-ready HTTP adapter.
+metagrab turns a URL into a link preview: title, description, image, favicon, canonical URL, author, date, Open Graph, Twitter Cards, JSON-LD and oEmbed. Use it as a Go library, a CLI, or a ready-made HTTP API.
 
-Requires **Go 1.26+**. Non-UTF-8 pages (for example Shift_JIS or windows-1251) are decoded to UTF-8.
+- **Fast.** It stops reading at `</head>` when it can. On a 1.8 MB product page it reads 445 KB and returns in 1.94 ms, 3.5x to 9.0x faster than the other Go libraries we tested. [Benchmarks](#benchmarks)
+- **Safe to expose.** `WithDenyPrivateNetworks()` blocks private and cloud-metadata addresses on every connection, including redirects and DNS rebinding. Retries, timeouts and body limits are built in.
+- **Complete.** One call gives you what a preview card needs, with absolute URLs, the best favicon, charset decoding, and oEmbed for 23 providers.
+- **Small.** Only `golang.org/x` dependencies.
 
 ## Install
 
 ```bash
-go get github.com/josephgoksu/metagrab
+go get github.com/josephgoksu/metagrab                     # library
+brew install --cask josephgoksu/tap/metagrab              # CLI (macOS, Linux)
+go install github.com/josephgoksu/metagrab/cmd/metagrab@latest
+docker run --rm -p 8080:8080 ghcr.io/josephgoksu/metagrab  # HTTP API
 ```
+
+Requires Go 1.26 or newer.
 
 ## Quick start
 
-Extract a link preview (title, description, OG, Twitter, favicon, canonical URL):
-
 ```go
-link, err := metagrab.Fetch(ctx, "https://example.com", metagrab.PreviewFields)
+link, err := metagrab.Fetch(ctx, "https://go.dev", metagrab.PreviewFields)
 if err != nil {
-    log.Fatal(err) // *metagrab.FetchError with machine-readable Code
+    log.Fatal(err) // *metagrab.FetchError with a machine-readable Code
 }
-fmt.Println(link.Title)
-fmt.Println(link.Favicon)
-fmt.Println(link.OpenGraph["og:image"])
+fmt.Println(link.Title, link.Description)
+fmt.Println(link.Image)   // absolute URL, ready for an <img>
+fmt.Println(link.Favicon) // best icon, falls back to /favicon.ico
 ```
 
-Include JSON-LD structured data:
+Already have the HTML (from a crawler or a cache)? Parse it without a request:
 
 ```go
-link, err := metagrab.Fetch(ctx, "https://example.com", metagrab.RichFields)
-// link.JSONLD contains parsed JSON-LD blocks
-// link.ContentType has the first @type (e.g. "Article", "Person")
+link, err := metagrab.Parse(resp.Body, "https://example.com/post", metagrab.PreviewFields)
 ```
 
-## Field bitmask
+Add JSON-LD with `RichFields`:
+
+```go
+link, err := metagrab.Fetch(ctx, url, metagrab.RichFields)
+// link.JSONLD holds the parsed blocks, link.ContentType the first @type ("Article", "Product", ...)
+```
+
+## Field masks
 
 Control what gets extracted per request. Use presets or combine individual flags:
 
 | Preset           | Value | What it extracts                         |
 | ---------------- | ----- | ---------------------------------------- |
-| `MetadataFields` | 15    | Title + URL + OG/Twitter + Description   |
+| `MetadataFields` | 15    | Title + URL + OG/Twitter + Description + Image |
 | `PreviewFields`  | 111   | MetadataFields + Favicon + Canonical URL |
 | `RichFields`     | 239   | PreviewFields + JSON-LD                  |
 | `AllFields`      | 255   | RichFields + full HTML body              |
@@ -61,7 +76,7 @@ Individual flags for custom combinations:
 | `CanonicalField`   | 64    | `<link rel="canonical">` URL                                                                   |
 | `JSONLDField`      | 128   | `<script type="application/ld+json">` blocks + `ContentType` from `@type`                      |
 
-Example — metadata + favicon only (no canonical):
+Example: metadata + favicon only (no canonical):
 
 ```go
 mask := metagrab.MetadataFields | metagrab.FaviconField // 47
@@ -83,8 +98,8 @@ link, err := metagrab.Fetch(ctx, url, mask)
 | `Favicon`      | `string`            | `FaviconField`     | Best favicon URL                                                               |
 | `CanonicalURL` | `string`            | `CanonicalField`   | Canonical URL                                                                  |
 | `Image`        | `string`            | `MetaField`        | Best preview image, absolute (`og:image` > `twitter:image` > oEmbed thumbnail) |
-| `SiteName`     | `string`            | `MetaField`        | From `og:site_name`                                                            |
-| `Author`       | `string`            | `MetaField`        | From `article:author` or `<meta name="author">`                                |
+| `SiteName`     | `string`            | `MetaField`        | From `og:site_name`, or the oEmbed provider name                               |
+| `Author`       | `string`            | `MetaField`        | From `article:author`, `<meta name="author">` or the oEmbed author             |
 | `PublishedAt`  | `string`            | `MetaField`        | From `article:published_time` or `<meta name="date">` (raw string, not parsed) |
 | `JSONLD`       | `[]map[string]any`  | `JSONLDField`      | Parsed JSON-LD blocks (max 10 per page, 256 KB per block)                      |
 | `ContentType`  | `string`            | `JSONLDField`      | First `@type` from JSON-LD (e.g. `"Article"`, `"Person"`)                      |
@@ -131,7 +146,7 @@ link, err := client.Fetch(ctx, url, metagrab.PreviewFields)
 | `WithMaxBodySize` | 2 MB           | Response body size limit                                                |
 | `WithURLPolicy`   | nil            | URL allow/deny hook, run before the request and on every redirect       |
 | `WithUserAgent`   | `metagrab/1`   | User-Agent header                                                       |
-| `WithHTTPClient`  | —              | Bring your own `*http.Client` (timeout and transport managed by caller) |
+| `WithHTTPClient`  | -              | Bring your own `*http.Client` (timeout and transport managed by caller) |
 
 Package-level functions (`metagrab.Fetch`, `metagrab.FetchBulkResults`) use a default client with the defaults above.
 
@@ -190,7 +205,7 @@ If you pass your own client with `WithHTTPClient`, these protections are yours t
 
 ## oEmbed support
 
-When `MetaField` is set and the URL matches a known provider, metagrab fetches oEmbed data and backfills empty `Title` and `SiteName` fields. The full oEmbed response is available via `link.OEmbed`:
+When `MetaField` is set and the URL matches a known provider, metagrab fetches oEmbed data and fills empty `Title`, `SiteName`, `Author` and `Image` fields. The full oEmbed response is available via `link.OEmbed`:
 
 ```go
 link, _ := metagrab.Fetch(ctx, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", metagrab.PreviewFields)
@@ -214,7 +229,7 @@ Supported providers (23):
 | Media    | Flickr, Giphy, Imgur                      |
 | Other    | Loom, Miro, Kickstarter, Mixcloud, Scribd |
 
-## HTTP service
+## HTTP API
 
 The `httphandler` sub-package wraps a `metagrab.Client` as a standard `http.Handler`:
 
@@ -232,7 +247,7 @@ http.ListenAndServe(":8080", h)
 
 ### Endpoints
 
-**`POST /fetch`** — single URL
+**`POST /fetch`** - single URL
 
 ```json
 { "url": "https://example.com", "fields": 111 }
@@ -242,7 +257,7 @@ Returns the `Link` object directly. `fields` defaults to `15` (MetadataFields) w
 
 Errors return a `FetchError` JSON body. Status codes: `400` for invalid or denied URLs, `422` for non-HTML targets, `504` for timeouts, and `502` for every other upstream failure. A non-2xx response from the target is also `502`, with the target's status in `status_code`.
 
-**`POST /fetch-bulk`** — batch (up to 100 URLs)
+**`POST /fetch-bulk`** - batch (up to 100 URLs)
 
 ```json
 { "urls": ["https://a.com", "https://b.com"], "fields": 111 }
@@ -250,7 +265,7 @@ Errors return a `FetchError` JSON body. Status codes: `400` for invalid or denie
 
 Returns `[Link, ...]`. Failed URLs return a Link with only the `url` field populated.
 
-**`GET /health`** — health check
+**`GET /health`** - health check
 
 Returns `{"status": "ok"}`. This endpoint does not require the API key, so load balancers can call it.
 
@@ -258,7 +273,7 @@ Returns `{"status": "ok"}`. This endpoint does not require the API key, so load 
 
 | Option                 | Default | Description                              |
 | ---------------------- | ------- | ---------------------------------------- |
-| `WithAPIKey`           | —       | Enable `X-API-Key` header authentication |
+| `WithAPIKey`           | -       | Enable `X-API-Key` header authentication |
 | `WithRequestBodyLimit` | 64 KB   | Max request body size                    |
 | `WithMaxBulkURLs`      | 100     | Max URLs per `/fetch-bulk` request       |
 
@@ -312,16 +327,48 @@ docker run --rm -p 8080:8080 -e METAGRAB_API_KEY=secret ghcr.io/josephgoksu/meta
 
 `serve` blocks private networks by default (`-allow-private-networks` turns that off for internal use), logs JSON to stderr, sets server timeouts and drains in-flight requests on `SIGTERM`. It reads `METAGRAB_ADDR`, `PORT` and `METAGRAB_API_KEY` from the environment.
 
-## Testing
+## Benchmarks
+
+Time to fetch one link preview from a local server (median, lower is better). Full method, raw numbers and memory charts: [docs/benchmarks](docs/benchmarks/README.md).
+
+![Fetch time per link preview](docs/benchmarks/fetch-time.svg)
+
+| Page | metagrab | metagrab (rich) | Fastest other | Slowest other |
+| --- | ---: | ---: | ---: | ---: |
+| Small blog post (38 KB) | **292 µs** | 314 µs | 437 µs (badoux/goscraper) | 909 µs (goquery (hand-rolled)) |
+| Typical page (154 KB) | **580 µs** | 647 µs | 955 µs (badoux/goscraper) | 2.30 ms (goquery (hand-rolled)) |
+| News article (699 KB) | **1.16 ms** | 1.32 ms | 3.06 ms (badoux/goscraper) | 7.30 ms (goquery (hand-rolled)) |
+| Shop product page (1.8 MB) | **1.94 ms** | 2.58 ms | 6.82 ms (badoux/goscraper) | 17.49 ms (goquery (hand-rolled)) |
+
+`metagrab` uses `PreviewFields`; `metagrab (rich)` adds JSON-LD, which means scanning the whole body. On a typical page metagrab is 1.6x faster than the fastest alternative, and allocates 99 KB to parse it where the DOM-based libraries allocate up to 533 KB. The libraries do not extract the same fields; see the [feature comparison](docs/benchmarks/README.md#features).
+
+Reproduce on your machine: `cd bench && go run .`
+
+## Running in production
+
+A checklist for running metagrab behind a product (B2B or B2C):
+
+- **SSRF.** Turn on `WithDenyPrivateNetworks()` whenever URLs come from users (`metagrab serve` does by default).
+- **Timeouts.** Keep `WithTimeout` short (3-10s) and pass a request `context` so cancelled requests stop fetching.
+- **Caching.** Previews change rarely. Cache `Link` results by URL (for example 24h) in front of metagrab; it does not cache for you.
+- **Rate limits.** Put the HTTP API behind an API key (`METAGRAB_API_KEY`) and rate limiting at your edge. Use `WithConcurrency` to bound bulk fetches.
+- **Retries.** `WithRetries(1-2)` handles 429/502/503/504; waits respect `Retry-After` up to `WithMaxRetryWait`.
+- **Rendering.** Treat every returned string as untrusted. Escape it, and never inject `OEmbed.HTML` without a sandboxed iframe.
+- **Errors.** Branch on `FetchError.Code`, not on error strings.
+
+## Stability
+
+metagrab follows [semantic versioning](https://semver.org). After v1.0.0, exported API changes are additive within a major version. The JSON field names of `Link` and `FetchError` are part of the API. See [CHANGELOG.md](CHANGELOG.md).
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Report security issues privately, as described in [SECURITY.md](SECURITY.md).
 
 ```bash
-go test ./... -short        # Unit tests only (no network, ~0.6s)
-go test ./... -race -short  # With race detector
-go test ./...               # All tests including network
-go test -tags=integration   # Integration tests against real URLs
+go test -short -race ./...        # unit tests, no network
+go test -tags=integration ./...   # against real websites
 ```
 
-## More
+## License
 
-- [MIGRATION.md](./MIGRATION.md) — v1 → v2 breaking changes
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — Scope, boundaries, and deployment architecture
+[Apache 2.0](LICENSE)

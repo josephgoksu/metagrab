@@ -1,0 +1,25 @@
+name: Bug report
+description: Wrong or missing metadata, a crash, or an error you did not expect
+labels: [bug]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: URL or HTML sample
+      description: A public URL that shows the problem, or a minimal HTML snippet below.
+  - type: input
+    id: fields
+    attributes:
+      label: Field mask
+      placeholder: PreviewFields / 111 / -fields=rich
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected and what you got
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: metagrab version and Go version
+      placeholder: v1.0.0, go1.27.3
