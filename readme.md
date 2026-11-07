@@ -273,13 +273,9 @@ Deployment examples in `examples/`:
 ## CLI
 
 ```bash
-go install github.com/josephgoksu/metagrab/cmd@latest
-```
-
-Or build from source:
-
-```bash
-go build -o metagrab ./cmd
+brew install --cask josephgoksu/tap/metagrab
+# or
+go install github.com/josephgoksu/metagrab/cmd/metagrab@latest
 ```
 
 Usage:
@@ -291,14 +287,30 @@ metagrab -fields=rich https://example.com           # preview + JSON-LD
 metagrab -fields=all https://example.com            # everything including HTML body
 metagrab -retries=2 -timeout=5s https://example.com # with retries and custom timeout
 metagrab https://a.com https://b.com https://c.com  # bulk fetch (concurrent)
+metagrab version
 ```
 
-| Flag           | Default   | Description                                                                   |
-| -------------- | --------- | ----------------------------------------------------------------------------- |
-| `-fields`      | `preview` | Preset name (`metadata`, `preview`, `rich`, `all`) or numeric bitmask (0-255) |
-| `-timeout`     | `10s`     | HTTP timeout per request                                                      |
-| `-retries`     | `0`       | Retry attempts for 429/502/503/504                                            |
-| `-retry-delay` | `250ms`   | Base delay between retries                                                    |
+| Flag           | Default   | Description                                                      |
+| -------------- | --------- | ---------------------------------------------------------------- |
+| `-fields`      | `preview` | Preset (`metadata`, `preview`, `rich`, `all`) or numeric bitmask |
+| `-timeout`     | `10s`     | HTTP timeout per request                                         |
+| `-retries`     | `0`       | Retry attempts for 429/502/503/504                               |
+| `-retry-delay` | `250ms`   | Base delay between retries                                       |
+| `-concurrency` | `10`      | Parallel fetches when several URLs are given                     |
+| `-compact`     | `false`   | One-line JSON output                                             |
+| `-quiet`       | `false`   | Do not print timing to stderr                                    |
+
+Exit codes: `0` ok, `1` usage error, `2` one or more URLs failed, `3` internal error.
+
+### Run the HTTP API
+
+```bash
+metagrab serve -addr :8080 -api-key "$METAGRAB_API_KEY"
+# or
+docker run --rm -p 8080:8080 -e METAGRAB_API_KEY=secret ghcr.io/josephgoksu/metagrab
+```
+
+`serve` blocks private networks by default (`-allow-private-networks` turns that off for internal use), logs JSON to stderr, sets server timeouts and drains in-flight requests on `SIGTERM`. It reads `METAGRAB_ADDR`, `PORT` and `METAGRAB_API_KEY` from the environment.
 
 ## Testing
 

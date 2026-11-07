@@ -1,0 +1,7 @@
+.git
+dist
+examples/cloudflare-container/worker
+*.md
+!readme.md
+assets
+docs

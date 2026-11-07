@@ -1,0 +1,98 @@
+# GoReleaser configuration. Docs: https://goreleaser.com
+# Release: push a vX.Y.Z tag; .github/workflows/release.yml runs this.
+version: 2
+
+project_name: metagrab
+
+before:
+  hooks:
+    - go mod tidy
+    - go test -short ./...
+
+builds:
+  - id: metagrab
+    main: ./cmd/metagrab
+    binary: metagrab
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - readme.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Other changes
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^Merge"
+
+homebrew_casks:
+  - name: metagrab
+    binaries: [metagrab]
+    description: "Fetch link-preview metadata (Open Graph, Twitter Cards, JSON-LD, oEmbed) from any URL"
+    homepage: "https://github.com/josephgoksu/metagrab"
+    license: "Apache-2.0"
+    repository:
+      owner: josephgoksu
+      name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
+    directory: Casks
+    commit_author:
+      name: Joseph Goksu
+      email: josephgoksu@gmail.com
+    commit_msg_template: "metagrab {{ .Tag }}"
+    # The binaries are not notarized; remove the quarantine flag so macOS
+    # does not block the first run.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/metagrab"]
+          end
+
+release:
+  github:
+    owner: josephgoksu
+    name: metagrab
+  prerelease: auto
+  footer: |
+    ## Install
+
+    ```bash
+    brew install --cask josephgoksu/tap/metagrab              # macOS / Linux
+    go install github.com/josephgoksu/metagrab/cmd/metagrab@{{ .Tag }}
+    docker run --rm -p 8080:8080 ghcr.io/josephgoksu/metagrab:{{ .Version }} serve
+    ```
+
+    Library: `go get github.com/josephgoksu/metagrab@{{ .Tag }}`
